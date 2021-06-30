@@ -1,6 +1,7 @@
 [package]
 name = "acsys"
 version = "0.1.0"
+authors = ["Beau Harrison <beau@fnal.gov>", "Rich Neswold <neswold@fnal.gov"]
 edition = "2018"
 
 [dependencies]
