@@ -1,5 +1,7 @@
 use clap::{clap_app, crate_name, crate_version};
 
+mod drf;
+
 // Returns a data type that handles all details of command line
 // arguments.
 
