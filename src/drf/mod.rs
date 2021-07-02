@@ -101,6 +101,11 @@ pub enum StateOp {
 }
 
 #[derive(Clone, Debug, PartialEq)]
+pub enum ClockType {
+    Hardware, Software, Either
+}
+
+#[derive(Clone, Debug, PartialEq)]
 pub enum Event {
     Never,
     Immediate,
@@ -112,6 +117,7 @@ pub enum Event {
     },
     Clock {
         event: u8,
+        clk_type: ClockType,
         delay: u32,
     },
     State {

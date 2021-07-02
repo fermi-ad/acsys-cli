@@ -10,44 +10,47 @@ use combine::{attempt, choice, one_of, optional, value, Parser};
 // exceeded.
 
 fn scale_rate(suf: Option<char>, text: String) -> u32 {
-    match text.parse::<u32>() {
-        Ok(v) => match suf {
-            Some('s') | Some('S') => {
-                if v > u32::MAX / 1000000 {
-                    u32::MAX
-                } else {
-                    v * 1000000
-                }
+    // The only way `text.parse()` can fail is if the digits in the
+    // string exceed the value that a u32 can hold. So clip it to the
+    // max value.
+
+    let v = if let Ok(v) = text.parse::<u32>() { v } else { u32::MAX };
+
+    match suf {
+        Some('s') | Some('S') => {
+            if v > u32::MAX / 1000000 {
+                u32::MAX
+            } else {
+                v * 1000000
             }
-            Some('m') | Some('M') | None => {
-                if v > u32::MAX / 1000 {
-                    u32::MAX
-                } else {
-                    v * 1000
-                }
+        }
+        Some('m') | Some('M') | None => {
+            if v > u32::MAX / 1000 {
+                u32::MAX
+            } else {
+                v * 1000
             }
-            Some('u') | Some('U') => v,
-            Some('k') | Some('K') => {
-                if v == 0 {
-                    u32::MAX
-                } else if v > 1000 {
-                    1
-                } else {
-                    1000 / v
-                }
+        }
+        Some('u') | Some('U') => v,
+        Some('k') | Some('K') => {
+            if v == 0 {
+                u32::MAX
+            } else if v > 1000 {
+                1
+            } else {
+                1000 / v
             }
-            Some('h') | Some('H') => {
-                if v == 0 {
-                    u32::MAX
-                } else if v > 1000000 {
-                    1
-                } else {
-                    1000000 / v
-                }
+        }
+        Some('h') | Some('H') => {
+            if v == 0 {
+                u32::MAX
+            } else if v > 1000000 {
+                1
+            } else {
+                1000000 / v
             }
-            Some(_) => unreachable!(),
-        },
-        Err(_) => panic!("bad value"),
+        }
+        Some(_) => unreachable!(),
     }
 }
 
