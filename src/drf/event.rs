@@ -85,17 +85,13 @@ where
 {
     optional(
         char::char(',').with(
-            attempt(char::string("TRUE"))
-                .or(attempt(char::string("FALSE")))
-                .or(char::string("T"))
-                .or(char::string("F")),
+            attempt(char::string("TRUE").with(value(true)))
+                .or(attempt(char::string("FALSE").with(value(false))))
+                .or(char::char('T').with(value(true)))
+                .or(char::char('F').with(value(false)))
         ),
     )
-    .map(|v| match v {
-        Some("TRUE") | Some("T") => true,
-        Some("FALSE") | Some("F") | None => false,
-        Some(_) => unreachable!(),
-    })
+    .map(|v| if let Some(v) = v { v } else { false })
 }
 
 // Returns a parser that looks for the ",rate[,imm]" portion of a
