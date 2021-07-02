@@ -100,7 +100,7 @@ pub enum StateOp {
     All,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum ClockType {
     Hardware, Software, Either
 }
@@ -116,7 +116,7 @@ pub enum Event {
         skip_dups: bool,
     },
     Clock {
-        event: u8,
+        event: u16,
         clk_type: ClockType,
         delay: u32,
     },

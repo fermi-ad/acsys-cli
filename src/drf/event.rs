@@ -1,8 +1,8 @@
-use super::Event;
-use combine::error::ParseError;
-use combine::parser::{char, repeat};
+use super::{ ClockType, Event };
+use combine::error::{ ParseError, StreamError };
+use combine::parser::{char, repeat, combinator::look_ahead};
 use combine::stream::Stream;
-use combine::{attempt, choice, one_of, optional, value, Parser};
+use combine::{attempt, choice, one_of, optional, value, Parser, EasyParser};
 
 // Takes numeric text and an optional suffix character and computes
 // the microsecond, periodic rate that represents it. If the user
@@ -107,6 +107,20 @@ where
         .map(|(r, i)| (if let Some(r) = r { r } else { 1000000u32 }, i))
 }
 
+// Returns a parser that understands the clock type field in a clock
+// event string.
+
+fn parse_clock_type<Input>() -> impl Parser<Input, Output = ClockType>
+where
+    Input: Stream<Token = char>,
+    Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
+{
+    char::char(',')
+        .with(one_of("eE".chars()).with(value(ClockType::Either))
+              .or(one_of("hH".chars()).with(value(ClockType::Hardware)))
+              .or(one_of("sS".chars()).with(value(ClockType::Software))))
+}
+
 // This is the entry point for this module. It uses the other parsers
 // in this module to decode the event string from the incoming text.
 
@@ -135,11 +149,30 @@ where
             skip_dups: true,
         });
 
+    let parse_clock = one_of("eE".chars())
+        .with((char::char(',')
+               .with(repeat::count_min_max(1, 4, char::hex_digit())
+                     .map(|v: String|
+                          match u16::from_str_radix(&v, 16) {
+                              Ok(v) => v,
+                              Err(_) => unreachable!()
+                          })),
+               optional(parse_clock_type()),
+               parse_time_freq()))
+        .map(|(ev, ct, r): (u16, Option<ClockType>, Option<u32>)| {
+            Event::Clock {
+                event: ev,
+                clk_type: ct.unwrap_or(ClockType::Either),
+                delay: r.unwrap_or(0)
+            }
+        });
+
     choice((
         parse_never,
         parse_immediate,
         parse_periodic,
         parse_periodic_filt,
+        parse_clock,
     ))
 }
 
@@ -214,8 +247,10 @@ mod tests {
             ("Q,1000", 1000000u32, false, true, ""),
             ("Q,2000z", 2000000u32, false, true, "z"),
             ("Q,1S,T", 1000000u32, true, true, ""),
+            ("Q,1S,TASK", 1000000u32, true, true, "ASK"),
             ("Q,10S", 10000000u32, false, true, ""),
             ("Q,1U,TRUE", 1u32, true, true, ""),
+            ("Q,1U,TRUCK", 1u32, true, true, "RUCK"),
             ("Q,1K", 1000u32, false, true, ""),
             ("Q,2K", 500u32, false, true, ""),
             ("Q,1H", 1000000u32, false, true, ""),
@@ -251,5 +286,33 @@ mod tests {
         assert!(parser().parse("p,T").is_err());
         assert!(parser().parse("P,FALSE").is_err());
         assert!(parser().parse("P,F").is_err());
+
+        let clock_data = &[
+            ("E,0", 0, ClockType::Either, 0, ""),
+            ("E,0,e", 0, ClockType::Either, 0, ""),
+            ("E,0,s", 0, ClockType::Software, 0, ""),
+            ("E,0,h", 0, ClockType::Hardware, 0, ""),
+            ("E,0,h,100", 0, ClockType::Hardware, 100000, ""),
+            ("E,2", 0x2u16, ClockType::Either, 0, ""),
+            ("E,8f", 0x8fu16, ClockType::Either, 0, ""),
+        ];
+
+        for &(txt, ev, ct, dly, extra) in clock_data {
+            assert_eq!(
+                parser().easy_parse(txt),
+                Ok((
+                    Event::Clock {
+                        event: ev,
+                        clk_type: ct,
+                        delay: dly
+                    },
+                    extra
+                ))
+            );
+        }
+
+        // assert!(parser().parse("E,12345").is_err());
+        // assert!(parser().parse("E,12345,e").is_err());
+        assert!(parser().parse("E,1234,a").is_err());
     }
 }
