@@ -1,17 +1,50 @@
+use super::Event;
 use combine::error::ParseError;
 use combine::parser::{char, repeat};
 use combine::stream::Stream;
 use combine::{attempt, choice, one_of, optional, value, Parser};
-use super::Event;
+
+// Takes numeric text and an optional suffix character and computes
+// the microsecond, periodic rate that represents it. If the user
+// provided bad input, the result is clipped to the extreme that was
+// exceeded.
 
 fn scale_rate(suf: Option<char>, text: String) -> u32 {
     match text.parse::<u32>() {
         Ok(v) => match suf {
-            Some('s') | Some('S') => v * 1000000,
-            Some('m') | Some('M') | None => v * 1000,
+            Some('s') | Some('S') => {
+                if v > u32::MAX / 1000000 {
+                    u32::MAX
+                } else {
+                    v * 1000000
+                }
+            }
+            Some('m') | Some('M') | None => {
+                if v > u32::MAX / 1000 {
+                    u32::MAX
+                } else {
+                    v * 1000
+                }
+            }
             Some('u') | Some('U') => v,
-            Some('k') | Some('K') => 1000 / v,
-            Some('h') | Some('H') => 1000000 / v,
+            Some('k') | Some('K') => {
+                if v == 0 {
+                    u32::MAX
+                } else if v > 1000 {
+                    1
+                } else {
+                    1000 / v
+                }
+            }
+            Some('h') | Some('H') => {
+                if v == 0 {
+                    u32::MAX
+                } else if v > 1000000 {
+                    1
+                } else {
+                    1000000 / v
+                }
+            }
             Some(_) => unreachable!(),
         },
         Err(_) => panic!("bad value"),
