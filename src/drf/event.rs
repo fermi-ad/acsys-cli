@@ -212,13 +212,14 @@ mod tests {
             ("Q", 1000000u32, false, true, ""),
             ("QD", 1000000u32, false, true, "D"),
             ("Q,1000", 1000000u32, false, true, ""),
+            ("Q,2000z", 2000000u32, false, true, "z"),
             ("Q,1S,T", 1000000u32, true, true, ""),
             ("Q,10S", 10000000u32, false, true, ""),
             ("Q,1U,TRUE", 1u32, true, true, ""),
             ("Q,1K", 1000u32, false, true, ""),
             ("Q,2K", 500u32, false, true, ""),
             ("Q,1H", 1000000u32, false, true, ""),
-            ("Q,10H", 100000u32, false, true, ""),
+            ("Q,10hz", 100000u32, false, true, "z"),
         ];
 
         for &(p, r, i, s, x) in periodic_data {
@@ -238,7 +239,9 @@ mod tests {
         // This should fail because we consumed the comma, but didn't
         // find a digit.
 
+        assert!(parser().parse("P,").is_err());
         assert!(parser().parse("P,junk").is_err());
+        assert!(parser().parse("P,1000,").is_err());
 
         // These should fail because, if we don't have the time-freq
         // field, then we can't proceed to parse the immediate flag
