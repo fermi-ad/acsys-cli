@@ -104,7 +104,7 @@ where
 {
     parse_time_freq()
         .and(parse_periodic_imm())
-        .map(|(r, i): (Option<u32>, bool)| (if let Some(r) = r { r } else { 1000000u32 }, i))
+        .map(|(r, i)| (if let Some(r) = r { r } else { 1000000u32 }, i))
 }
 
 // This is the entry point for this module. It uses the other parsers
