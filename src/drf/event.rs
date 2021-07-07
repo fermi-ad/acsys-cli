@@ -87,20 +87,13 @@ where
 // Returns a time-freq value (u32) of the form ",TIME-FREQ". This
 // field is assumed to be optional, so the function may return None.
 
-fn parse_time_freq<Input>() -> impl Parser<Input, Output = Option<u32>>
+fn parse_time_freq<Input>() -> impl Parser<Input, Output = u32>
 where
     Input: Stream<Token = char>,
     Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
 {
-    optional(char::char(',').with((parse_u32(), optional(one_of("sSmMuUkKhH".chars()))))).map(
-        |v: Option<(u32, Option<char>)>| {
-            if let Some((val, suf)) = v {
-                Some(scale_rate(val, suf))
-            } else {
-                None
-            }
-        },
-    )
+    (parse_u32(), optional(one_of("sSmMuUkKhH".chars()))).map(
+        |(val, suf): (u32, Option<char>)| { scale_rate(val, suf) })
 }
 
 // Returns a parser that looks for the trailing ",TRUE/FALSE" portion
@@ -149,7 +142,7 @@ where
     Input: Stream<Token = char>,
     Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
 {
-    parse_time_freq()
+    optional(char::char(',').with(parse_time_freq()))
         .and(parse_periodic_imm())
         .map(|(r, i)| (if let Some(r) = r { r } else { 1000000u32 }, i))
 }
@@ -202,7 +195,7 @@ where
         .with((
             char::char(',').with(parse_clock_event()),
             optional(parse_clock_type()),
-            parse_time_freq(),
+            optional(char::char(',').with(parse_time_freq())),
         ))
         .map(
             |(event, ct, r): (u16, Option<ClockType>, Option<u32>)| Event::Clock {
@@ -255,39 +248,39 @@ mod tests {
             ("", None, ""),
             ("X", None, "X"),
             // Tests for "milliseconds" input (which is the default).
-            (",100", Some(100000u32), ""),
-            (",200-", Some(200000u32), "-"),
-            (",1000m", Some(1000000u32), ""),
-            (",2000M", Some(2000000u32), ""),
+            ("100", Some(100000u32), ""),
+            ("200-", Some(200000u32), "-"),
+            ("1000m", Some(1000000u32), ""),
+            ("2000M", Some(2000000u32), ""),
             // Tests for "seconds" input.
-            (",2s", Some(2000000u32), ""),
-            (",5S", Some(5000000u32), ""),
+            ("2s", Some(2000000u32), ""),
+            ("5S", Some(5000000u32), ""),
             // Tests for "microseconds" input.
-            (",10uB", Some(10u32), "B"),
-            (",1000U", Some(1000u32), ""),
+            ("10uB", Some(10u32), "B"),
+            ("1000U", Some(1000u32), ""),
             // Tests for Hertz input.
-            (",10h", Some(100000u32), ""),
-            (",200H", Some(5000u32), ""),
-            (",3h", Some(333333u32), ""),
-            (",1000000h", Some(1u32), ""),
+            ("10h", Some(100000u32), ""),
+            ("200H", Some(5000u32), ""),
+            ("3h", Some(333333u32), ""),
+            ("1000000h", Some(1u32), ""),
             // Tests for KHertz input.
-            (",10k", Some(100u32), ""),
-            (",200K", Some(5u32), ""),
-            (",1000K", Some(1u32), ""),
+            ("10k", Some(100u32), ""),
+            ("200K", Some(5u32), ""),
+            ("1000K", Some(1u32), ""),
             // Check the clipping algorithms.
-            (",4294S", Some(4294000000u32), ""),
-            (",4295S", Some(u32::MAX), ""),
-            (",4294967m", Some(4294967000u32), ""),
-            (",4294968m", Some(u32::MAX), ""),
-            (",4294968", Some(u32::MAX), ""),
-            (",0h", Some(u32::MAX), ""),
-            (",1000001H", Some(1u32), ""),
-            (",0k", Some(u32::MAX), ""),
-            (",1001K", Some(1u32), ""),
+            ("4294S", Some(4294000000u32), ""),
+            ("4295S", Some(u32::MAX), ""),
+            ("4294967m", Some(4294967000u32), ""),
+            ("4294968m", Some(u32::MAX), ""),
+            ("4294968", Some(u32::MAX), ""),
+            ("0h", Some(u32::MAX), ""),
+            ("1000001H", Some(1u32), ""),
+            ("0k", Some(u32::MAX), ""),
+            ("1001K", Some(1u32), ""),
         ];
 
         for &(p, r, x) in data {
-            assert_eq!(parse_time_freq().parse(p), Ok((r, x)));
+            assert_eq!(optional(parse_time_freq()).parse(p), Ok((r, x)));
         }
     }
 
