@@ -200,7 +200,7 @@ where
         .with((
             char::char(',').with(parse_int()),
             char::char(',').with(parse_int()),
-            char::char(',').with(parse_int()),
+            char::char(',').with(parse_time_freq()),
             char::char(',').with(parse_ops()),
         ))
         .map(|(device, value, delay, expr)| Event::State {
@@ -374,11 +374,11 @@ mod tests {
         let state_data = &[
             ("S,100,10,0,*", 100, 10, 0, StateOp::All, ""),
             ("S,200,15,0,=", 200, 15, 0, StateOp::Eq, ""),
-            ("S,100,10,30,!=", 100, 10, 30, StateOp::NEq, ""),
-            ("S,100,10,70,>", 100, 10, 70, StateOp::GT, ""),
+            ("S,100,10,30,!=", 100, 10, 30000, StateOp::NEq, ""),
+            ("S,100,10,70,>", 100, 10, 70000, StateOp::GT, ""),
             ("S,1000,10,0,>=", 1000, 10, 0, StateOp::GEq, ""),
             ("S,100,1000,0,<", 100, 1000, 0, StateOp::LT, ""),
-            ("S,100,100,100,<=", 100, 100, 100, StateOp::LEq, ""),
+            ("S,100,100,100,<=", 100, 100, 100000, StateOp::LEq, ""),
         ];
 
         for &(txt, device, value, delay, expr, extra) in state_data {
