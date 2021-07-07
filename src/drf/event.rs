@@ -95,12 +95,13 @@ where
     Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
 {
     optional(
-        char::char(',').with(
-            attempt(char::string("TRUE").with(value(true)))
-                .or(attempt(char::string("FALSE").with(value(false))))
-                .or(char::char('T').with(value(true)))
-                .or(char::char('F').with(value(false))),
-        ),
+        char::char(',').with(repeat::many1(char::letter()).and_then(|v: String| {
+            match v.to_uppercase().as_str() {
+                "TRUE" | "T" => Ok(true),
+                "FALSE" | "F" => Ok(false),
+                _ => Err(StreamErrorFor::<Input>::message("unknown keyword"))
+            }
+        })),
     )
     .map(|v| if let Some(v) = v { v } else { false })
 }
@@ -288,10 +289,10 @@ mod tests {
             ("P", 1000000u32, false, false, ""),
             ("pD", 1000000u32, false, false, "D"),
             ("P,1000", 1000000u32, false, false, ""),
-            ("p,1S,T", 1000000u32, true, false, ""),
+            ("p,1S,t", 1000000u32, true, false, ""),
             ("P,10S,TRUE", 10000000u32, true, false, ""),
             ("P,1U", 1u32, false, false, ""),
-            ("P,1K,F", 1000u32, false, false, ""),
+            ("P,1K,f", 1000u32, false, false, ""),
             ("P,2K,FALSE", 500u32, false, false, ""),
             ("P,1H", 1000000u32, false, false, ""),
             ("P,10H", 100000u32, false, false, ""),
@@ -300,10 +301,8 @@ mod tests {
             ("Q,1000", 1000000u32, false, true, ""),
             ("Q,2000z", 2000000u32, false, true, "z"),
             ("Q,1S,T", 1000000u32, true, true, ""),
-            ("Q,1S,TASK", 1000000u32, true, true, "ASK"),
             ("Q,10S", 10000000u32, false, true, ""),
-            ("Q,1U,TRUE", 1u32, true, true, ""),
-            ("Q,1U,TRUCK", 1u32, true, true, "RUCK"),
+            ("Q,1U,true", 1u32, true, true, ""),
             ("Q,1K", 1000u32, false, true, ""),
             ("Q,2K", 500u32, false, true, ""),
             ("Q,1H", 1000000u32, false, true, ""),
@@ -335,6 +334,8 @@ mod tests {
         // field, then we can't proceed to parse the immediate flag
         // field.
 
+        assert!(parser().parse("P,1s,TASK").is_err());
+        assert!(parser().parse("Q,1s,FLOAT").is_err());
         assert!(parser().parse("P,TRUE").is_err());
         assert!(parser().parse("p,T").is_err());
         assert!(parser().parse("P,FALSE").is_err());
