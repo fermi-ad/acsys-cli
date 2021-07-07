@@ -84,6 +84,9 @@ pub enum Property {
     AlarmList,
 }
 
+// Type which specifies a range of data.
+
+#[derive(Clone, Debug, PartialEq)]
 pub enum Range {
     Full,
     Array {
@@ -94,6 +97,35 @@ pub enum Range {
         offset: u32,
         length: Option<u32>,
     },
+}
+
+impl Range {
+    // Returns the canonical form of the range.
+
+    pub fn canonical(&self) -> String {
+        match *self {
+            Range::Full => String::from("[]"),
+
+            Range::Array { start_index, end_index } =>
+                match (start_index, end_index) {
+                    (0, Some(0)) => String::from(""),
+                    (s, Some(e)) =>
+                        if s == e {
+                            format!("[{}]", s)
+                        } else {
+                            format!("[{}:{}]", s, e)
+                        },
+                    (s, None) => format!("[{}:]", s)
+                },
+
+            Range::Raw { offset, length } =>
+                match (offset, length) {
+                    (o, Some(1)) => format!("{{{}}}", o),
+                    (o, Some(l)) => format!("{{{}:{}}}", o, l),
+                    (o, None) => format!("{{{}:}}", o)
+                }
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -138,6 +170,7 @@ pub enum Event {
 }
 
 mod device;
+mod range;
 mod event;
 
 pub fn parse_device(dev_str: &str) -> Result<(Device, Property), StringStreamError> {
