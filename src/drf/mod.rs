@@ -1,19 +1,23 @@
 use combine::{error::StringStreamError, Parser};
 
+#[derive(Debug, PartialEq)]
 pub struct Device(String);
 
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum ReadingField {
     Raw,
     Primary,
     Scaled,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum SettingField {
     Raw,
     Primary,
     Scaled,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum StatusField {
     Raw,
     All,
@@ -26,6 +30,7 @@ pub enum StatusField {
     Ramp,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum AnalogField {
     Raw,
     All,
@@ -48,6 +53,7 @@ pub enum AnalogField {
     Flags,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum DigitalField {
     Raw,
     All,
@@ -64,13 +70,14 @@ pub enum DigitalField {
     Flags,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Property {
-    Reading(ReadingField),
-    Setting(SettingField),
-    Status(StatusField),
+    Reading(Option<ReadingField>),
+    Setting(Option<SettingField>),
+    Status(Option<StatusField>),
     Control,
-    Analog(AnalogField),
-    Digital(DigitalField),
+    Analog(Option<AnalogField>),
+    Digital(Option<DigitalField>),
     Description,
     Index,
     LongName,
@@ -130,7 +137,12 @@ pub enum Event {
     },
 }
 
+mod device;
 mod event;
+
+pub fn parse_device(dev_str: &str) -> Result<(Device, Property), StringStreamError> {
+    Ok(device::parser().parse(dev_str)?.0)
+}
 
 pub fn parse_event(ev_str: &str) -> Result<Event, StringStreamError> {
     Ok(event::parser().parse(ev_str)?.0)
