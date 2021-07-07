@@ -139,6 +139,20 @@ pub enum StateOp {
     All,
 }
 
+impl StateOp {
+    pub fn canonical(&self) -> &'static str {
+        match *self {
+            StateOp::Eq => "=",
+            StateOp::NEq => "!=",
+            StateOp::GT => ">",
+            StateOp::LT => "<",
+            StateOp::LEq => "<=",
+            StateOp::GEq => ">=",
+            StateOp::All => "*",
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum ClockType {
     Hardware,
@@ -146,7 +160,17 @@ pub enum ClockType {
     Either,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+impl ClockType {
+    pub fn canonical(&self) -> &'static str {
+        match *self {
+            ClockType::Hardware => "H",
+            ClockType::Software => "S",
+            ClockType::Either => "E",
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Event {
     Never,
     Immediate,
@@ -169,6 +193,24 @@ pub enum Event {
     },
 }
 
+impl Event {
+    pub fn canonical(&self) -> String {
+        match *self {
+            Event::Default => String::from(""),
+            Event::Never => String::from("N"),
+            Event::Immediate => String::from("I"),
+            Event::Periodic { period, immediate, skip_dups } =>
+                format!("{},{}U,{}", if skip_dups { 'Q' } else { 'P' },
+                        period, if immediate { "TRUE" } else { "FALSE" }),
+            Event::Clock { event, clk_type, delay } =>
+                format!("E,{:X},{},{}U", event, clk_type.canonical(), delay),
+            Event::State { device, value, delay, expr } =>
+                format!("S,{},{},{}U,{}", device, value, delay,
+                        expr.canonical())
+        }
+    }
+}
+
 mod device;
 mod range;
 mod event;
@@ -177,6 +219,62 @@ pub fn parse_device(dev_str: &str) -> Result<(Device, Property), StringStreamErr
     Ok(device::parser().parse(dev_str)?.0)
 }
 
+pub fn parse_range(ev_str: &str) -> Result<Range, StringStreamError> {
+    Ok(range::parser().parse(ev_str)?.0)
+}
+
 pub fn parse_event(ev_str: &str) -> Result<Event, StringStreamError> {
     Ok(event::parser().parse(ev_str)?.0)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_event_canonical_forms() {
+        let data = &[
+            ("N", "N"),
+            ("n", "N"),
+            ("I", "I"),
+            ("i", "I"),
+            ("P,1s", "P,1000000U,TRUE"),
+            ("P,1s,f", "P,1000000U,FALSE"),
+            ("P,2h,false", "P,500000U,FALSE"),
+            ("P,10u,false", "P,10U,FALSE"),
+            ("P,20m", "P,20000U,TRUE"),
+            ("P,30", "P,30000U,TRUE"),
+            ("P,10k", "P,100U,TRUE"),
+            ("E,008f,h,10h", "E,8F,H,100000U"),
+            ("E,0", "E,0,E,0U"),
+            ("S,1234,0,1s,=", "S,1234,0,1000000U,="),
+        ];
+
+        for &(event, result) in data {
+            assert_eq!(event::parser().parse(event).unwrap().0.canonical(),
+                       result)
+        }
+    }
+
+    #[test]
+    fn test_range_canonical_forms() {
+        let data = &[
+            ("[]", "[]"),
+            ("{}", "[]"),
+            ("[:]", "[]"),
+            ("{:}", "[]"),
+            ("[0:]", "[]"),
+            ("{0:}", "[]"),
+            ("[1:2]", "[1:2]"),
+            ("[0:0]", ""),
+            ("[1:1]", "[1]"),
+            ("{1:1}", "{1}"),
+            ("{1:2}", "{1:2}"),
+        ];
+
+        for &(range, result) in data {
+            assert_eq!(range::parser().parse(range).unwrap().0.canonical(),
+                       result)
+        }
+    }
 }
