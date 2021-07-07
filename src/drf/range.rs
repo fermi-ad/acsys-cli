@@ -2,7 +2,7 @@ use super::Range;
 use combine::error::{ParseError, StreamError};
 use combine::parser::{char, repeat};
 use combine::stream::{Stream, StreamErrorFor};
-use combine::{attempt, choice, one_of, optional, value, Parser};
+use combine::{attempt, choice, optional, value, Parser};
 
 // Consumes a block of digits and converts them to an integer type, if
 // possible.
@@ -100,7 +100,6 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use combine::EasyParser;
 
     #[test]
     fn test_full_range_parsing() {
