@@ -130,7 +130,7 @@ where
         char::char('>').with(value(StateOp::GT)),
         char::char('<').with(value(StateOp::LT)),
         char::char('=').with(value(StateOp::Eq)),
-        char::char('*').with(value(StateOp::All))
+        char::char('*').with(value(StateOp::All)),
     ))
 }
 
@@ -391,7 +391,15 @@ mod tests {
         for &(txt, device, value, delay, expr, extra) in state_data {
             assert_eq!(
                 parser().easy_parse(txt),
-                Ok((Event::State { device, value, delay, expr }, extra))
+                Ok((
+                    Event::State {
+                        device,
+                        value,
+                        delay,
+                        expr
+                    },
+                    extra
+                ))
             );
         }
     }
