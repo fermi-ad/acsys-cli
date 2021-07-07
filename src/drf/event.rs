@@ -51,25 +51,15 @@ fn scale_rate(v: u32, suf: Option<char>) -> u32 {
 // Consumes a block of digits and converts them to a `u32` type, if
 // possible.
 
-fn parse_u32<Input>() -> impl Parser<Input, Output = u32>
+fn parse_int<Input, Output>() -> impl Parser<Input, Output = Output>
 where
     Input: Stream<Token = char>,
     Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
+    Output: std::str::FromStr,
+    <Output as std::str::FromStr>::Err: std::error::Error + Send + Sync + 'static,
 {
     repeat::many1(char::digit())
-        .and_then(|v: String| v.parse::<u32>().map_err(StreamErrorFor::<Input>::other))
-}
-
-// Consumes a block of digits and converts them to a `u16` type, if
-// possible.
-
-fn parse_u16<Input>() -> impl Parser<Input, Output = u16>
-where
-    Input: Stream<Token = char>,
-    Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
-{
-    repeat::many1(char::digit())
-        .and_then(|v: String| v.parse::<u16>().map_err(StreamErrorFor::<Input>::other))
+        .and_then(|v: String| v.parse::<Output>().map_err(StreamErrorFor::<Input>::other))
 }
 
 // Consumes a block of hexadecimal digits and converts them to a `u16`
@@ -92,8 +82,8 @@ where
     Input: Stream<Token = char>,
     Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
 {
-    (parse_u32(), optional(one_of("sSmMuUkKhH".chars()))).map(
-        |(val, suf): (u32, Option<char>)| { scale_rate(val, suf) })
+    (parse_int(), optional(one_of("sSmMuUkKhH".chars())))
+        .map(|(val, suf): (u32, Option<char>)| scale_rate(val, suf))
 }
 
 // Returns a parser that looks for the trailing ",TRUE/FALSE" portion
@@ -206,10 +196,12 @@ where
         );
 
     let parse_state = one_of("sS".chars())
-        .with((char::char(',').with(parse_u32()),
-               char::char(',').with(parse_u16()),
-               char::char(',').with(parse_u32()),
-               char::char(',').with(parse_ops())))
+        .with((
+            char::char(',').with(parse_int()),
+            char::char(',').with(parse_int()),
+            char::char(',').with(parse_int()),
+            char::char(',').with(parse_ops()),
+        ))
         .map(|(device, value, delay, expr)| Event::State {
             device,
             value,
