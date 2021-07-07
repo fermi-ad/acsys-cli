@@ -1,21 +1,15 @@
-use super::{ ClockType, Event };
-use combine::error::{ ParseError, StreamError };
-use combine::parser::{char, repeat, combinator::look_ahead};
-use combine::stream::Stream;
-use combine::{attempt, choice, one_of, optional, value, Parser, EasyParser};
+use super::{ClockType, Event, StateOp};
+use combine::error::{ParseError, StreamError};
+use combine::parser::{char, repeat};
+use combine::stream::{Stream, StreamErrorFor};
+use combine::{attempt, choice, one_of, optional, value, Parser};
 
 // Takes numeric text and an optional suffix character and computes
 // the microsecond, periodic rate that represents it. If the user
 // provided bad input, the result is clipped to the extreme that was
 // exceeded.
 
-fn scale_rate(suf: Option<char>, text: String) -> u32 {
-    // The only way `text.parse()` can fail is if the digits in the
-    // string exceed the value that a u32 can hold. So clip it to the
-    // max value.
-
-    let v = if let Ok(v) = text.parse::<u32>() { v } else { u32::MAX };
-
+fn scale_rate(v: u32, suf: Option<char>) -> u32 {
     match suf {
         Some('s') | Some('S') => {
             if v > u32::MAX / 1000000 {
@@ -54,6 +48,42 @@ fn scale_rate(suf: Option<char>, text: String) -> u32 {
     }
 }
 
+// Consumes a block of digits and converts them to a `u32` type, if
+// possible.
+
+fn parse_u32<Input>() -> impl Parser<Input, Output = u32>
+where
+    Input: Stream<Token = char>,
+    Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
+{
+    repeat::many1(char::digit())
+        .and_then(|v: String| v.parse::<u32>().map_err(StreamErrorFor::<Input>::other))
+}
+
+// Consumes a block of digits and converts them to a `u16` type, if
+// possible.
+
+fn parse_u16<Input>() -> impl Parser<Input, Output = u16>
+where
+    Input: Stream<Token = char>,
+    Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
+{
+    repeat::many1(char::digit())
+        .and_then(|v: String| v.parse::<u16>().map_err(StreamErrorFor::<Input>::other))
+}
+
+// Consumes a block of hexadecimal digits and converts them to a `u16`
+// type, if possible.
+
+fn parse_clock_event<Input>() -> impl Parser<Input, Output = u16>
+where
+    Input: Stream<Token = char>,
+    Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
+{
+    repeat::many1(char::hex_digit())
+        .and_then(|v: String| u16::from_str_radix(&v, 16).map_err(StreamErrorFor::<Input>::other))
+}
+
 // Returns a time-freq value (u32) of the form ",TIME-FREQ". This
 // field is assumed to be optional, so the function may return None.
 
@@ -62,17 +92,15 @@ where
     Input: Stream<Token = char>,
     Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
 {
-    optional(char::char(',').with((
-        repeat::many1(char::digit()),
-        optional(one_of("sSmMuUkKhH".chars())),
-    )))
-    .map(|v: Option<(String, Option<char>)>| {
-        if let Some((text, suf)) = v {
-            Some(scale_rate(suf, text))
-        } else {
-            None
-        }
-    })
+    optional(char::char(',').with((parse_u32(), optional(one_of("sSmMuUkKhH".chars()))))).map(
+        |v: Option<(u32, Option<char>)>| {
+            if let Some((val, suf)) = v {
+                Some(scale_rate(val, suf))
+            } else {
+                None
+            }
+        },
+    )
 }
 
 // Returns a parser that looks for the trailing ",TRUE/FALSE" portion
@@ -88,10 +116,29 @@ where
             attempt(char::string("TRUE").with(value(true)))
                 .or(attempt(char::string("FALSE").with(value(false))))
                 .or(char::char('T').with(value(true)))
-                .or(char::char('F').with(value(false)))
+                .or(char::char('F').with(value(false))),
         ),
     )
     .map(|v| if let Some(v) = v { v } else { false })
+}
+
+// Returns a parser that looks for the trailing state-op portion
+// of a state event string.
+
+fn parse_ops<Input>() -> impl Parser<Input, Output = StateOp>
+where
+    Input: Stream<Token = char>,
+    Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
+{
+    choice((
+        attempt(char::string("<=")).with(value(StateOp::LEq)),
+        attempt(char::string(">=")).with(value(StateOp::GEq)),
+        attempt(char::string("!=")).with(value(StateOp::NEq)),
+        char::char('>').with(value(StateOp::GT)),
+        char::char('<').with(value(StateOp::LT)),
+        char::char('=').with(value(StateOp::Eq)),
+        char::char('*').with(value(StateOp::All))
+    ))
 }
 
 // Returns a parser that looks for the ",rate[,imm]" portion of a
@@ -115,10 +162,12 @@ where
     Input: Stream<Token = char>,
     Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
 {
-    char::char(',')
-        .with(one_of("eE".chars()).with(value(ClockType::Either))
-              .or(one_of("hH".chars()).with(value(ClockType::Hardware)))
-              .or(one_of("sS".chars()).with(value(ClockType::Software))))
+    char::char(',').with(
+        one_of("eE".chars())
+            .with(value(ClockType::Either))
+            .or(one_of("hH".chars()).with(value(ClockType::Hardware)))
+            .or(one_of("sS".chars()).with(value(ClockType::Software))),
+    )
 }
 
 // This is the entry point for this module. It uses the other parsers
@@ -150,22 +199,39 @@ where
         });
 
     let parse_clock = one_of("eE".chars())
-        .with((char::char(',')
-               .with(repeat::count_min_max(1, 4, char::hex_digit())
-                     .map(|v: String|
-                          match u16::from_str_radix(&v, 16) {
-                              Ok(v) => v,
-                              Err(_) => unreachable!()
-                          })),
-               optional(parse_clock_type()),
-               parse_time_freq()))
-        .map(|(ev, ct, r): (u16, Option<ClockType>, Option<u32>)| {
-            Event::Clock {
-                event: ev,
+        .with((
+            char::char(',').with(parse_clock_event()),
+            optional(parse_clock_type()),
+            parse_time_freq(),
+        ))
+        .map(
+            |(event, ct, r): (u16, Option<ClockType>, Option<u32>)| Event::Clock {
+                event,
                 clk_type: ct.unwrap_or(ClockType::Either),
-                delay: r.unwrap_or(0)
-            }
+                delay: r.unwrap_or(0),
+            },
+        );
+
+    let parse_state = one_of("sS".chars())
+        .with((char::char(',').with(parse_u32()),
+               char::char(',').with(parse_u16()),
+               char::char(',').with(parse_u32()),
+               char::char(',').with(parse_ops())))
+        .map(|(device, value, delay, expr)| Event::State {
+            device,
+            value,
+            delay,
+            expr,
         });
+
+    // Create an all-encompassing parser which tries each of the
+    // parsers above. None of these need to be wtapped with `attempt`
+    // because they all start with a parser that looks for a single
+    // matching character so no input will be consumed if it doesn't
+    // match. Once the character matches, however, that parser is
+    // committed to finishing (because `choice` won't try an
+    // alternative if input is consumed -- event partially -- by a
+    // sub-parser.)
 
     choice((
         parse_never,
@@ -173,12 +239,14 @@ where
         parse_periodic,
         parse_periodic_filt,
         parse_clock,
+        parse_state,
     ))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use combine::EasyParser;
 
     #[test]
     fn test_time_freq_parsing() {
@@ -295,6 +363,8 @@ mod tests {
             ("E,0,h,100", 0, ClockType::Hardware, 100000, ""),
             ("E,2", 0x2u16, ClockType::Either, 0, ""),
             ("E,8f", 0x8fu16, ClockType::Either, 0, ""),
+            ("E,89ab", 0x89abu16, ClockType::Either, 0, ""),
+            ("E,000089ab", 0x89abu16, ClockType::Either, 0, ""),
         ];
 
         for &(txt, ev, ct, dly, extra) in clock_data {
@@ -311,8 +381,25 @@ mod tests {
             );
         }
 
-        // assert!(parser().parse("E,12345").is_err());
-        // assert!(parser().parse("E,12345,e").is_err());
+        assert!(parser().parse("E,12345").is_err());
+        assert!(parser().parse("E,12345,e").is_err());
         assert!(parser().parse("E,1234,a").is_err());
+
+        let state_data = &[
+            ("S,100,10,0,*", 100, 10, 0, StateOp::All, ""),
+            ("S,200,15,0,=", 200, 15, 0, StateOp::Eq, ""),
+            ("S,100,10,30,!=", 100, 10, 30, StateOp::NEq, ""),
+            ("S,100,10,70,>", 100, 10, 70, StateOp::GT, ""),
+            ("S,1000,10,0,>=", 1000, 10, 0, StateOp::GEq, ""),
+            ("S,100,1000,0,<", 100, 1000, 0, StateOp::LT, ""),
+            ("S,100,100,100,<=", 100, 100, 100, StateOp::LEq, ""),
+        ];
+
+        for &(txt, device, value, delay, expr, extra) in state_data {
+            assert_eq!(
+                parser().easy_parse(txt),
+                Ok((Event::State { device, value, delay, expr }, extra))
+            );
+        }
     }
 }

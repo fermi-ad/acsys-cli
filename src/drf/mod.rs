@@ -89,7 +89,7 @@ pub enum Range {
     },
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum StateOp {
     Eq,
     NEq,
