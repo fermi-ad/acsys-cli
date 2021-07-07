@@ -103,7 +103,7 @@ where
             }
         })),
     )
-    .map(|v| if let Some(v) = v { v } else { false })
+    .map(|v| if let Some(v) = v { v } else { true })
 }
 
 // Returns a parser that looks for the trailing state-op portion
@@ -286,27 +286,27 @@ mod tests {
         assert_eq!(parser().parse("i"), Ok((Event::Immediate, "")));
 
         let periodic_data = &[
-            ("P", 1000000u32, false, false, ""),
-            ("pD", 1000000u32, false, false, "D"),
-            ("P,1000", 1000000u32, false, false, ""),
+            ("P", 1000000u32, true, false, ""),
+            ("pD", 1000000u32, true, false, "D"),
+            ("P,1000", 1000000u32, true, false, ""),
             ("p,1S,t", 1000000u32, true, false, ""),
             ("P,10S,TRUE", 10000000u32, true, false, ""),
-            ("P,1U", 1u32, false, false, ""),
+            ("P,1U", 1u32, true, false, ""),
             ("P,1K,f", 1000u32, false, false, ""),
             ("P,2K,FALSE", 500u32, false, false, ""),
-            ("P,1H", 1000000u32, false, false, ""),
-            ("P,10H", 100000u32, false, false, ""),
-            ("Q", 1000000u32, false, true, ""),
-            ("QD", 1000000u32, false, true, "D"),
-            ("Q,1000", 1000000u32, false, true, ""),
-            ("Q,2000z", 2000000u32, false, true, "z"),
+            ("P,1H", 1000000u32, true, false, ""),
+            ("P,10H", 100000u32, true, false, ""),
+            ("Q", 1000000u32, true, true, ""),
+            ("QD", 1000000u32, true, true, "D"),
+            ("Q,1000", 1000000u32, true, true, ""),
+            ("Q,2000z", 2000000u32, true, true, "z"),
             ("Q,1S,T", 1000000u32, true, true, ""),
-            ("Q,10S", 10000000u32, false, true, ""),
+            ("Q,10S", 10000000u32, true, true, ""),
             ("Q,1U,true", 1u32, true, true, ""),
-            ("Q,1K", 1000u32, false, true, ""),
-            ("Q,2K", 500u32, false, true, ""),
-            ("Q,1H", 1000000u32, false, true, ""),
-            ("Q,10hz", 100000u32, false, true, "z"),
+            ("Q,1K", 1000u32, true, true, ""),
+            ("Q,2K", 500u32, true, true, ""),
+            ("Q,1H", 1000000u32, true, true, ""),
+            ("Q,10hz", 100000u32, true, true, "z"),
         ];
 
         for &(p, r, i, s, x) in periodic_data {
