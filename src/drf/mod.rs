@@ -1,4 +1,4 @@
-use combine::{Parser, error::StringStreamError};
+use combine::{error::StringStreamError, Parser};
 
 pub struct Device(String);
 
@@ -102,7 +102,9 @@ pub enum StateOp {
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum ClockType {
-    Hardware, Software, Either
+    Hardware,
+    Software,
+    Either,
 }
 
 #[derive(Clone, Debug, PartialEq)]
