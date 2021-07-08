@@ -219,14 +219,14 @@ where
     // alternative if input is consumed -- event partially -- by a
     // sub-parser.)
 
-    choice((
+    char::char('@').with(choice((
         parse_never,
         parse_immediate,
         parse_periodic,
         parse_periodic_filt,
         parse_clock,
         parse_state,
-    ))
+    ))).or(value(Event::Default))
 }
 
 #[cfg(test)]
@@ -279,34 +279,34 @@ mod tests {
 
     #[test]
     fn test_event_parsing() {
-        assert_eq!(parser().parse("N"), Ok((Event::Never, "")));
-        assert_eq!(parser().parse("n"), Ok((Event::Never, "")));
+        assert_eq!(parser().parse("@N"), Ok((Event::Never, "")));
+        assert_eq!(parser().parse("@n"), Ok((Event::Never, "")));
 
-        assert_eq!(parser().parse("I"), Ok((Event::Immediate, "")));
-        assert_eq!(parser().parse("i"), Ok((Event::Immediate, "")));
+        assert_eq!(parser().parse("@I"), Ok((Event::Immediate, "")));
+        assert_eq!(parser().parse("@i"), Ok((Event::Immediate, "")));
 
         let periodic_data = &[
-            ("P", 1000000u32, true, false, ""),
-            ("pD", 1000000u32, true, false, "D"),
-            ("P,1000", 1000000u32, true, false, ""),
-            ("p,1S,t", 1000000u32, true, false, ""),
-            ("P,10S,TRUE", 10000000u32, true, false, ""),
-            ("P,1U", 1u32, true, false, ""),
-            ("P,1K,f", 1000u32, false, false, ""),
-            ("P,2K,FALSE", 500u32, false, false, ""),
-            ("P,1H", 1000000u32, true, false, ""),
-            ("P,10H", 100000u32, true, false, ""),
-            ("Q", 1000000u32, true, true, ""),
-            ("QD", 1000000u32, true, true, "D"),
-            ("Q,1000", 1000000u32, true, true, ""),
-            ("Q,2000z", 2000000u32, true, true, "z"),
-            ("Q,1S,T", 1000000u32, true, true, ""),
-            ("Q,10S", 10000000u32, true, true, ""),
-            ("Q,1U,true", 1u32, true, true, ""),
-            ("Q,1K", 1000u32, true, true, ""),
-            ("Q,2K", 500u32, true, true, ""),
-            ("Q,1H", 1000000u32, true, true, ""),
-            ("Q,10hz", 100000u32, true, true, "z"),
+            ("@P", 1000000u32, true, false, ""),
+            ("@pD", 1000000u32, true, false, "D"),
+            ("@P,1000", 1000000u32, true, false, ""),
+            ("@p,1S,t", 1000000u32, true, false, ""),
+            ("@P,10S,TRUE", 10000000u32, true, false, ""),
+            ("@P,1U", 1u32, true, false, ""),
+            ("@P,1K,f", 1000u32, false, false, ""),
+            ("@P,2K,FALSE", 500u32, false, false, ""),
+            ("@P,1H", 1000000u32, true, false, ""),
+            ("@P,10H", 100000u32, true, false, ""),
+            ("@Q", 1000000u32, true, true, ""),
+            ("@QD", 1000000u32, true, true, "D"),
+            ("@Q,1000", 1000000u32, true, true, ""),
+            ("@Q,2000z", 2000000u32, true, true, "z"),
+            ("@Q,1S,T", 1000000u32, true, true, ""),
+            ("@Q,10S", 10000000u32, true, true, ""),
+            ("@Q,1U,true", 1u32, true, true, ""),
+            ("@Q,1K", 1000u32, true, true, ""),
+            ("@Q,2K", 500u32, true, true, ""),
+            ("@Q,1H", 1000000u32, true, true, ""),
+            ("@Q,10hz", 100000u32, true, true, "z"),
         ];
 
         for &(p, r, i, s, x) in periodic_data {
@@ -326,31 +326,31 @@ mod tests {
         // This should fail because we consumed the comma, but didn't
         // find a digit.
 
-        assert!(parser().parse("P,").is_err());
-        assert!(parser().parse("P,junk").is_err());
-        assert!(parser().parse("P,1000,").is_err());
+        assert!(parser().parse("@P,").is_err());
+        assert!(parser().parse("@P,junk").is_err());
+        assert!(parser().parse("@P,1000,").is_err());
 
         // These should fail because, if we don't have the time-freq
         // field, then we can't proceed to parse the immediate flag
         // field.
 
-        assert!(parser().parse("P,1s,TASK").is_err());
-        assert!(parser().parse("Q,1s,FLOAT").is_err());
-        assert!(parser().parse("P,TRUE").is_err());
-        assert!(parser().parse("p,T").is_err());
-        assert!(parser().parse("P,FALSE").is_err());
-        assert!(parser().parse("P,F").is_err());
+        assert!(parser().parse("@P,1s,TASK").is_err());
+        assert!(parser().parse("@Q,1s,FLOAT").is_err());
+        assert!(parser().parse("@P,TRUE").is_err());
+        assert!(parser().parse("@p,T").is_err());
+        assert!(parser().parse("@P,FALSE").is_err());
+        assert!(parser().parse("@P,F").is_err());
 
         let clock_data = &[
-            ("E,0", 0, ClockType::Either, 0, ""),
-            ("E,0,e", 0, ClockType::Either, 0, ""),
-            ("E,0,s", 0, ClockType::Software, 0, ""),
-            ("E,0,h", 0, ClockType::Hardware, 0, ""),
-            ("E,0,h,100", 0, ClockType::Hardware, 100000, ""),
-            ("E,2", 0x2u16, ClockType::Either, 0, ""),
-            ("E,8f", 0x8fu16, ClockType::Either, 0, ""),
-            ("E,89ab", 0x89abu16, ClockType::Either, 0, ""),
-            ("E,000089ab", 0x89abu16, ClockType::Either, 0, ""),
+            ("@E,0", 0, ClockType::Either, 0, ""),
+            ("@E,0,e", 0, ClockType::Either, 0, ""),
+            ("@E,0,s", 0, ClockType::Software, 0, ""),
+            ("@E,0,h", 0, ClockType::Hardware, 0, ""),
+            ("@E,0,h,100", 0, ClockType::Hardware, 100000, ""),
+            ("@E,2", 0x2u16, ClockType::Either, 0, ""),
+            ("@E,8f", 0x8fu16, ClockType::Either, 0, ""),
+            ("@E,89ab", 0x89abu16, ClockType::Either, 0, ""),
+            ("@E,000089ab", 0x89abu16, ClockType::Either, 0, ""),
         ];
 
         for &(txt, ev, ct, dly, extra) in clock_data {
@@ -367,18 +367,18 @@ mod tests {
             );
         }
 
-        assert!(parser().parse("E,12345").is_err());
-        assert!(parser().parse("E,12345,e").is_err());
-        assert!(parser().parse("E,1234,a").is_err());
+        assert!(parser().parse("@E,12345").is_err());
+        assert!(parser().parse("@E,12345,e").is_err());
+        assert!(parser().parse("@E,1234,a").is_err());
 
         let state_data = &[
-            ("S,100,10,0,*", 100, 10, 0, StateOp::All, ""),
-            ("S,200,15,0,=", 200, 15, 0, StateOp::Eq, ""),
-            ("S,100,10,30,!=", 100, 10, 30000, StateOp::NEq, ""),
-            ("S,100,10,70,>", 100, 10, 70000, StateOp::GT, ""),
-            ("S,1000,10,0,>=", 1000, 10, 0, StateOp::GEq, ""),
-            ("S,100,1000,0,<", 100, 1000, 0, StateOp::LT, ""),
-            ("S,100,100,100,<=", 100, 100, 100000, StateOp::LEq, ""),
+            ("@S,100,10,0,*", 100, 10, 0, StateOp::All, ""),
+            ("@S,200,15,0,=", 200, 15, 0, StateOp::Eq, ""),
+            ("@S,100,10,30,!=", 100, 10, 30000, StateOp::NEq, ""),
+            ("@S,100,10,70,>", 100, 10, 70000, StateOp::GT, ""),
+            ("@S,1000,10,0,>=", 1000, 10, 0, StateOp::GEq, ""),
+            ("@S,100,1000,0,<", 100, 1000, 0, StateOp::LT, ""),
+            ("@S,100,100,100,<=", 100, 100, 100000, StateOp::LEq, ""),
         ];
 
         for &(txt, device, value, delay, expr, extra) in state_data {

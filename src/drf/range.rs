@@ -94,7 +94,9 @@ where
     Input: Stream<Token = char>,
     Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
 {
-    choice((parse_array_range(), parse_byte_range()))
+    choice((parse_array_range(),
+            parse_byte_range(),
+            value(Range::Array { start_index: 0, end_index: Some(0) })))
 }
 
 #[cfg(test)]
