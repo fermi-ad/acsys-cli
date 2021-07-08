@@ -349,6 +349,7 @@ impl Request {
 }
 
 mod device;
+mod property;
 mod range;
 mod event;
 
