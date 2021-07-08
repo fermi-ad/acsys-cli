@@ -191,7 +191,7 @@ where
         .map(
             |(event, ct, r): (u16, Option<ClockType>, Option<u32>)| Event::Clock {
                 event,
-                clk_type: ct.unwrap_or(ClockType::Either),
+                clk_type: ct.unwrap_or(ClockType::default()),
                 delay: r.unwrap_or(0),
             },
         );
