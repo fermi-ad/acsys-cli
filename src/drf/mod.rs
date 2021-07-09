@@ -359,16 +359,6 @@ impl Request {
     }
 }
 
-fn reading_fields() -> Vec<(&'static str, ReadingField)> {
-    vec![
-        ("RAW", ReadingField::Raw),
-        ("PRIMARY", ReadingField::Primary),
-        ("VOLTS", ReadingField::Primary),
-        ("SCALED", ReadingField::Scaled),
-        ("COMMON", ReadingField::Scaled),
-    ]
-}
-
 mod device;
 mod event;
 mod prop_field;

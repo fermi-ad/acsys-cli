@@ -4,6 +4,22 @@ use combine::parser::{char, choice, repeat};
 use combine::stream::{Stream, StreamErrorFor};
 use combine::Parser;
 
+const READING_FIELDS: [(&'static str, ReadingField); 5] = [
+    ("COMMON", ReadingField::Scaled),
+    ("PRIMARY", ReadingField::Primary),
+    ("RAW", ReadingField::Raw),
+    ("SCALED", ReadingField::Scaled),
+    ("VOLTS", ReadingField::Primary),
+];
+
+const SETTING_FIELDS: [(&'static str, SettingField); 5] = [
+    ("COMMON", SettingField::Scaled),
+    ("PRIMARY", SettingField::Primary),
+    ("RAW", SettingField::Raw),
+    ("SCALED", SettingField::Scaled),
+    ("VOLTS", SettingField::Primary),
+];
+
 fn get_parser<Input, PropField: Copy>(
     key_values: &'static [(&'static str, PropField)],
 ) -> impl Parser<Input, Output = PropField>
