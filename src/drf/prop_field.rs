@@ -4,8 +4,8 @@ use combine::parser::{char, choice, repeat};
 use combine::stream::{Stream, StreamErrorFor};
 use combine::Parser;
 
-pub fn get_parser<Input, PropField: Copy>(
-    key_values: Vec<(&'static str, PropField)>,
+fn get_parser<Input, PropField: Copy>(
+    key_values: &'static [(&'static str, PropField)],
 ) -> impl Parser<Input, Output = PropField>
 where
     Input: Stream<Token = char>,
@@ -13,7 +13,7 @@ where
 {
     char::char('.').with(
         repeat::many1(choice::or(char::letter(), char::char('_'))).and_then(move |v: String| {
-            for (d, o) in &key_values {
+            for (d, o) in key_values {
                 if &v == d {
                     return Ok(o.clone());
                 }
@@ -22,6 +22,65 @@ where
             return Err(StreamErrorFor::<Input>::message("Unknown property"));
         }),
     )
+}
+
+pub fn parse_property<Input>(qual_prop: Property) -> impl Parser<Input, Output = Property>
+where
+    Input: Stream<Token = char>,
+    Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
+{
+    const PROPERTIES: [(&str, Property); 32] = [
+        ("READING", Property::Reading(ReadingField::default())),
+        ("READ", Property::Reading(ReadingField::default())),
+        ("PRREAD", Property::Reading(ReadingField::default())),
+        ("SETTING", Property::Setting(SettingField::default())),
+        ("SET", Property::Setting(SettingField::default())),
+        ("PRSET", Property::Setting(SettingField::default())),
+        ("STATUS", Property::Status(StatusField::default())),
+        ("BASIC_STATUS", Property::Status(StatusField::default())),
+        ("STS", Property::Status(StatusField::default())),
+        ("PRBSTS", Property::Status(StatusField::default())),
+        ("CONTROL", Property::Control),
+        ("BASIC_CONTROL", Property::Control),
+        ("CTRL", Property::Control),
+        ("PRBCTL", Property::Control),
+        ("ANALOG", Property::Analog(AnalogField::default())),
+        ("ANALOG_ALARM", Property::Analog(AnalogField::default())),
+        ("AA", Property::Analog(AnalogField::default())),
+        ("PRANAB", Property::Analog(AnalogField::default())),
+        ("DIGITAL", Property::Digital(DigitalField::default())),
+        ("DIGITAL_ALARM", Property::Digital(DigitalField::default())),
+        ("DA", Property::Digital(DigitalField::default())),
+        ("PRDABL", Property::Digital(DigitalField::default())),
+        ("DESCRIPTION", Property::Description),
+        ("DESC", Property::Description),
+        ("PRDESC", Property::Description),
+        ("INDEX", Property::Index),
+        ("LONG_NAME", Property::LongName),
+        ("LNGNAM", Property::LongName),
+        ("PRLNAM", Property::LongName),
+        ("ALARM_LIST_NAME", Property::AlarmList),
+        ("LSTNAM", Property::AlarmList),
+        ("PRALNM", Property::AlarmList),
+    ];
+
+    get_parser(&PROPERTIES)
+        .and_then(move |property| {
+            match (qual_prop, property) {
+                (Property::Reading(_), _) |
+                (Property::Setting(_), Property::Setting(_)) |
+                (Property::Status(_), Property::Status(_)) |
+                (Property::Analog(_), Property::Analog(_)) |
+                (Property::Digital(_), Property::Digital(_)) |
+                (Property::Control, Property::Control) |
+                (Property::Description, Property::Description) |
+                (Property::Index, Property::Index) |
+                (Property::LongName, Property::LongName) |
+                (Property::AlarmList, Property::AlarmList) => Ok(property),
+                _ =>
+                    Err(StreamErrorFor::<Input>::message("mismatched properties"))
+            }
+        })
 }
 
 #[cfg(test)]
@@ -72,7 +131,7 @@ mod tests {
         ];
 
         for &(d, o, x) in device_data {
-            assert_eq!(get_parser(super::super::properties()).parse(d), Ok((o, x)));
+            assert_eq!(parse_property(o).parse(d), Ok((o, x)));
         }
     }
 }

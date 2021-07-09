@@ -1,6 +1,6 @@
-use combine::{error::StringStreamError, Parser};
+use combine::{error::StringStreamError, error::StreamError, optional, Stream, ParseError, Parser};
 
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Device(String);
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -345,51 +345,22 @@ pub struct Request {
     pub device: Device,
     pub property: Property,
     pub range: Range,
+    pub event: Event,
 }
 
 impl Request {
     pub fn canonical(&self) -> String {
         let (prop, field) = self.property.canonical();
 
-        format!("{}{}{}{}", self.device.0, prop, self.range.canonical(), field)
+        format!(
+            "{}{}{}{}{}",
+            self.device.0,
+            prop,
+            self.range.canonical(),
+            field,
+            self.event.canonical()
+        )
     }
-}
-
-fn properties() -> Vec<(&'static str, Property)> {
-    vec![
-        ("READING", Property::Reading(ReadingField::default())),
-        ("READ", Property::Reading(ReadingField::default())),
-        ("PRREAD", Property::Reading(ReadingField::default())),
-        ("SETTING", Property::Setting(SettingField::default())),
-        ("SET", Property::Setting(SettingField::default())),
-        ("PRSET", Property::Setting(SettingField::default())),
-        ("STATUS", Property::Status(StatusField::default())),
-        ("BASIC_STATUS", Property::Status(StatusField::default())),
-        ("STS", Property::Status(StatusField::default())),
-        ("PRBSTS", Property::Status(StatusField::default())),
-        ("CONTROL", Property::Control),
-        ("BASIC_CONTROL", Property::Control),
-        ("CTRL", Property::Control),
-        ("PRBCTL", Property::Control),
-        ("ANALOG", Property::Analog(AnalogField::default())),
-        ("ANALOG_ALARM", Property::Analog(AnalogField::default())),
-        ("AA", Property::Analog(AnalogField::default())),
-        ("PRANAB", Property::Analog(AnalogField::default())),
-        ("DIGITAL", Property::Digital(DigitalField::default())),
-        ("DIGITAL_ALARM", Property::Digital(DigitalField::default())),
-        ("DA", Property::Digital(DigitalField::default())),
-        ("PRDABL", Property::Digital(DigitalField::default())),
-        ("DESCRIPTION", Property::Description),
-        ("DESC", Property::Description),
-        ("PRDESC", Property::Description),
-        ("INDEX", Property::Index),
-        ("LONG_NAME", Property::LongName),
-        ("LNGNAM", Property::LongName),
-        ("PRLNAM", Property::LongName),
-        ("ALARM_LIST_NAME", Property::AlarmList),
-        ("LSTNAM", Property::AlarmList),
-        ("PRALNM", Property::AlarmList),
-    ]
 }
 
 fn reading_fields() -> Vec<(&'static str, ReadingField)> {
@@ -403,9 +374,9 @@ fn reading_fields() -> Vec<(&'static str, ReadingField)> {
 }
 
 mod device;
+mod event;
 mod prop_field;
 mod range;
-mod event;
 
 pub fn parse_device(dev_str: &str) -> Result<(Device, Property), StringStreamError> {
     Ok(device::parser().parse(dev_str)?.0)
@@ -420,10 +391,22 @@ pub fn parse_event(ev_str: &str) -> Result<Event, StringStreamError> {
 }
 
 pub fn parse(drf: &str) -> Result<Request, StringStreamError> {
-    let mut p = (device::parser(), range::parser())
-        .map(|((device, property), range)| {
-            Request { device, property, range }
-        });
+    let mut p = device::parser().then(move |(device, qual_property)| {
+        (
+            optional(prop_field::parse_property(qual_property))
+                .map(move |v| v.unwrap_or(qual_property)),
+            range::parser(),
+            event::parser(),
+        )
+            .map(move |(property, range, event)|
+                 Request {
+                     device: device.clone(),
+                     property,
+                     range,
+                     event,
+                 }
+            )
+    });
 
     Ok(p.parse(drf)?.0)
 }
@@ -483,6 +466,7 @@ mod tests {
             ("M:OUTTMP", "M:OUTTMP.READING.SCALED"),
             ("M:OUTTMP[0:3]", "M:OUTTMP.READING[0:3].SCALED"),
             ("M|OUTTMP[]", "M:OUTTMP.STATUS[].ALL"),
+            ("M|OUTTMP[]@e,02", "M:OUTTMP.STATUS[].ALL@E,2,E,0U"),
         ];
 
         for &(drf, result) in data {
