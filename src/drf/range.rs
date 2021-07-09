@@ -101,7 +101,7 @@ where
                             length: Some(l),
                         })
                     } else {
-                        Err(StreamErrorFor::<Input>::message("bad length"))
+                        Err(StreamErrorFor::<Input>::message("bad range"))
                     }
                 } else {
                     Err(StreamErrorFor::<Input>::message("bad length"))
