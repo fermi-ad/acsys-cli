@@ -348,8 +348,55 @@ impl Request {
     }
 }
 
+fn properties() -> Vec<(&'static str, Property)> {
+    vec![
+        ("READING", Property::Reading(ReadingField::default())),
+        ("READ", Property::Reading(ReadingField::default())),
+        ("PRREAD", Property::Reading(ReadingField::default())),
+        ("SETTING", Property::Setting(SettingField::default())),
+        ("SET", Property::Setting(SettingField::default())),
+        ("PRSET", Property::Setting(SettingField::default())),
+        ("STATUS", Property::Status(StatusField::default())),
+        ("BASIC_STATUS", Property::Status(StatusField::default())),
+        ("STS", Property::Status(StatusField::default())),
+        ("PRBSTS", Property::Status(StatusField::default())),
+        ("CONTROL", Property::Control),
+        ("BASIC_CONTROL", Property::Control),
+        ("CTRL", Property::Control),
+        ("PRBCTL", Property::Control),
+        ("ANALOG", Property::Analog(AnalogField::default())),
+        ("ANALOG_ALARM", Property::Analog(AnalogField::default())),
+        ("AA", Property::Analog(AnalogField::default())),
+        ("PRANAB", Property::Analog(AnalogField::default())),
+        ("DIGITAL", Property::Digital(DigitalField::default())),
+        ("DIGITAL_ALARM", Property::Digital(DigitalField::default())),
+        ("DA", Property::Digital(DigitalField::default())),
+        ("PRDABL", Property::Digital(DigitalField::default())),
+        ("DESCRIPTION", Property::Description),
+        ("DESC", Property::Description),
+        ("PRDESC", Property::Description),
+        ("INDEX", Property::Index),
+        ("LONG_NAME", Property::LongName),
+        ("LNGNAM", Property::LongName),
+        ("PRLNAM", Property::LongName),
+        ("ALARM_LIST_NAME", Property::AlarmList),
+        ("LSTNAM", Property::AlarmList),
+        ("PRALNM", Property::AlarmList),
+    ]
+}
+
+fn reading_fields() -> Vec<(&'static str, ReadingField)> {
+    vec![
+        ("RAW", ReadingField::Raw),
+        ("PRIMARY", ReadingField::Primary),
+        ("VOLTS", ReadingField::Primary),
+        ("SCALED", ReadingField::Scaled),
+        ("COMMON", ReadingField::Scaled),
+    ]
+}
+
 mod device;
-mod property;
+mod prop_field;
 mod range;
 mod event;
 

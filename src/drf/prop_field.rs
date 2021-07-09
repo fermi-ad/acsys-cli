@@ -1,38 +1,27 @@
 use super::{AnalogField, DigitalField, Property, ReadingField, SettingField, StatusField};
-use combine::error::ParseError;
+use combine::error::{ParseError, StreamError};
 use combine::parser::{char, choice, repeat};
-use combine::stream::Stream;
-use combine::{optional, Parser};
+use combine::stream::{Stream, StreamErrorFor};
+use combine::Parser;
 
-pub fn parser<Input>(current: Property) -> impl Parser<Input, Output = Property>
+pub fn get_parser<Input, PropField: Copy>(
+    key_values: Vec<(&'static str, PropField)>,
+) -> impl Parser<Input, Output = PropField>
 where
     Input: Stream<Token = char>,
     Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
 {
-    optional(char::char('.').with(
-        repeat::many1(choice::or(char::letter(), char::char('_'))).map(move |v: String| {
-            match v.to_uppercase().as_str() {
-                "READING" | "READ" | "PRREAD" => Property::Reading(ReadingField::default()),
-                "SETTING" | "SET" | "PRSET" => Property::Setting(SettingField::default()),
-                "STATUS" | "BASIC_STATUS" | "STS" | "PRBSTS" => {
-                    Property::Status(StatusField::default())
+    char::char('.').with(
+        repeat::many1(choice::or(char::letter(), char::char('_'))).and_then(move |v: String| {
+            for (d, o) in &key_values {
+                if &v == d {
+                    return Ok(o.clone());
                 }
-                "CONTROL" | "BASIC_CONTROL" | "CTRL" | "PRBCTL" => Property::Control,
-                "ANALOG" | "ANALOG_ALARM" | "AA" | "PRANAB" => {
-                    Property::Analog(AnalogField::default())
-                }
-                "DIGITAL" | "DIGITAL_ALARM" | "DA" | "PRDABL" => {
-                    Property::Digital(DigitalField::default())
-                }
-                "DESCRIPTION" | "DESC" | "PRDESC" => Property::Description,
-                "INDEX" => Property::Index,
-                "LONG_NAME" | "LNGNAM" | "PRLNAM" => Property::LongName,
-                "ALARM_LIST_NAME" | "LSTNAM" | "PRALNM" => Property::AlarmList,
-                _ => current,
             }
+
+            return Err(StreamErrorFor::<Input>::message("Unknown property"));
         }),
-    ))
-    .map(move |v| v.unwrap_or(current))
+    )
 }
 
 #[cfg(test)]
@@ -83,7 +72,7 @@ mod tests {
         ];
 
         for &(d, o, x) in device_data {
-            assert_eq!(parser(o).parse(d), Ok((o, x)));
+            assert_eq!(get_parser(super::super::properties()).parse(d), Ok((o, x)));
         }
     }
 }
