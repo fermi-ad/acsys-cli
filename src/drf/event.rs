@@ -99,7 +99,7 @@ where
             match v.to_uppercase().as_str() {
                 "TRUE" | "T" => Ok(true),
                 "FALSE" | "F" => Ok(false),
-                _ => Err(StreamErrorFor::<Input>::message("unknown keyword"))
+                _ => Err(StreamErrorFor::<Input>::message("unknown keyword")),
             }
         })),
     )
@@ -219,14 +219,16 @@ where
     // alternative if input is consumed -- event partially -- by a
     // sub-parser.)
 
-    char::char('@').with(choice((
-        parse_never,
-        parse_immediate,
-        parse_periodic,
-        parse_periodic_filt,
-        parse_clock,
-        parse_state,
-    ))).or(value(Event::Default))
+    char::char('@')
+        .with(choice((
+            parse_never,
+            parse_immediate,
+            parse_periodic,
+            parse_periodic_filt,
+            parse_clock,
+            parse_state,
+        )))
+        .or(value(Event::Default))
 }
 
 #[cfg(test)]

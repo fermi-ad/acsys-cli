@@ -215,24 +215,26 @@ impl Range {
         match *self {
             Range::Full => String::from("[]"),
 
-            Range::Array { start_index, end_index } =>
-                match (start_index, end_index) {
-                    (0, Some(0)) => String::from(""),
-                    (s, Some(e)) =>
-                        if s == e {
-                            format!("[{}]", s)
-                        } else {
-                            format!("[{}:{}]", s, e)
-                        },
-                    (s, None) => format!("[{}:]", s)
-                },
-
-            Range::Raw { offset, length } =>
-                match (offset, length) {
-                    (o, Some(1)) => format!("{{{}}}", o),
-                    (o, Some(l)) => format!("{{{}:{}}}", o, l),
-                    (o, None) => format!("{{{}:}}", o)
+            Range::Array {
+                start_index,
+                end_index,
+            } => match (start_index, end_index) {
+                (0, Some(0)) => String::from(""),
+                (s, Some(e)) => {
+                    if s == e {
+                        format!("[{}]", s)
+                    } else {
+                        format!("[{}:{}]", s, e)
+                    }
                 }
+                (s, None) => format!("[{}:]", s),
+            },
+
+            Range::Raw { offset, length } => match (offset, length) {
+                (o, Some(1)) => format!("{{{}}}", o),
+                (o, Some(l)) => format!("{{{}:{}}}", o, l),
+                (o, None) => format!("{{{}:}}", o),
+            },
         }
     }
 }
@@ -270,7 +272,9 @@ pub enum ClockType {
 }
 
 impl Default for ClockType {
-    fn default() -> Self { ClockType::Either }
+    fn default() -> Self {
+        ClockType::Either
+    }
 }
 
 impl ClockType {
@@ -312,14 +316,27 @@ impl Event {
             Event::Default => String::from(""),
             Event::Never => String::from("@N"),
             Event::Immediate => String::from("@I"),
-            Event::Periodic { period, immediate, skip_dups } =>
-                format!("@{},{}U,{}", if skip_dups { 'Q' } else { 'P' },
-                        period, if immediate { "TRUE" } else { "FALSE" }),
-            Event::Clock { event, clk_type, delay } =>
-                format!("@E,{:X},{},{}U", event, clk_type.canonical(), delay),
-            Event::State { device, value, delay, expr } =>
-                format!("@S,{},{},{}U,{}", device, value, delay,
-                        expr.canonical())
+            Event::Periodic {
+                period,
+                immediate,
+                skip_dups,
+            } => format!(
+                "@{},{}U,{}",
+                if skip_dups { 'Q' } else { 'P' },
+                period,
+                if immediate { "TRUE" } else { "FALSE" }
+            ),
+            Event::Clock {
+                event,
+                clk_type,
+                delay,
+            } => format!("@E,{:X},{},{}U", event, clk_type.canonical(), delay),
+            Event::State {
+                device,
+                value,
+                delay,
+                expr,
+            } => format!("@S,{},{},{}U,{}", device, value, delay, expr.canonical()),
         }
     }
 }
@@ -435,8 +452,7 @@ mod tests {
         ];
 
         for &(event, result) in data {
-            assert_eq!(event::parser().parse(event).unwrap().0.canonical(),
-                       result)
+            assert_eq!(event::parser().parse(event).unwrap().0.canonical(), result)
         }
     }
 
@@ -457,8 +473,7 @@ mod tests {
         ];
 
         for &(range, result) in data {
-            assert_eq!(range::parser().parse(range).unwrap().0.canonical(),
-                       result)
+            assert_eq!(range::parser().parse(range).unwrap().0.canonical(), result)
         }
     }
 

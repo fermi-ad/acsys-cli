@@ -23,31 +23,44 @@ where
     Input: Stream<Token = char>,
     Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
 {
-    let one_element = parse_int().skip(char::char(']'))
-        .map(|v: u16| Range::Array { start_index: v, end_index: Some(v) });
+    let one_element = parse_int()
+        .skip(char::char(']'))
+        .map(|v: u16| Range::Array {
+            start_index: v,
+            end_index: Some(v),
+        });
 
-    let multi_element = (optional(parse_int()).skip(char::char(':')),
-                         optional(parse_int()).skip(char::char(']')))
-        .and_then(|v| {
-            match v {
-                (None, None) | (Some(0), None) => Ok(Range::Full),
-                (Some(s), None) => Ok(Range::Array { start_index: s,
-                                                     end_index: None }),
-                (None, Some(e)) => Ok(Range::Array { start_index: 0,
-                                                     end_index: Some(e) }),
-                (Some(s), Some(e)) => {
-                    if s <= e {
-                        Ok(Range::Array { start_index: s, end_index: Some(e) })
-                    } else {
-                        Err(StreamErrorFor::<Input>::message("bad range"))
-                    }
+    let multi_element = (
+        optional(parse_int()).skip(char::char(':')),
+        optional(parse_int()).skip(char::char(']')),
+    )
+        .and_then(|v| match v {
+            (None, None) | (Some(0), None) => Ok(Range::Full),
+            (Some(s), None) => Ok(Range::Array {
+                start_index: s,
+                end_index: None,
+            }),
+            (None, Some(e)) => Ok(Range::Array {
+                start_index: 0,
+                end_index: Some(e),
+            }),
+            (Some(s), Some(e)) => {
+                if s <= e {
+                    Ok(Range::Array {
+                        start_index: s,
+                        end_index: Some(e),
+                    })
+                } else {
+                    Err(StreamErrorFor::<Input>::message("bad range"))
                 }
             }
         });
 
-    char::char('[').with(choice((char::char(']').with(value(Range::Full)),
-                                 attempt(one_element),
-                                 attempt(multi_element))))
+    char::char('[').with(choice((
+        char::char(']').with(value(Range::Full)),
+        attempt(one_element),
+        attempt(multi_element),
+    )))
 }
 
 fn parse_byte_range<Input>() -> impl Parser<Input, Output = Range>
@@ -55,38 +68,52 @@ where
     Input: Stream<Token = char>,
     Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
 {
-    let one_element = parse_int().skip(char::char('}'))
-        .map(|v: u32| Range::Raw { offset: v, length: Some(1) });
+    let one_element = parse_int().skip(char::char('}')).map(|v: u32| Range::Raw {
+        offset: v,
+        length: Some(1),
+    });
 
-    let multi_element = (optional(parse_int()).skip(char::char(':')),
-                         optional(parse_int()).skip(char::char('}')))
-        .and_then(|v| {
-            match v {
-                (None, None) | (Some(0), None) => Ok(Range::Full),
-                (Some(o), None) => Ok(Range::Raw { offset: o, length: None }),
-                (None, Some(l)) =>
-                    if l > 0 {
-                        Ok(Range::Raw { offset: 0, length: Some(l) })
-                    } else {
-                        Err(StreamErrorFor::<Input>::message("bad length"))
-                    },
-                (Some(o), Some(l)) => {
-                    if l > 0 {
-                        if o <= u32::MAX - l {
-                            Ok(Range::Raw { offset: o, length: Some(l) })
-                        } else {
-                            Err(StreamErrorFor::<Input>::message("bad range"))
-                        }
+    let multi_element = (
+        optional(parse_int()).skip(char::char(':')),
+        optional(parse_int()).skip(char::char('}')),
+    )
+        .and_then(|v| match v {
+            (None, None) | (Some(0), None) => Ok(Range::Full),
+            (Some(o), None) => Ok(Range::Raw {
+                offset: o,
+                length: None,
+            }),
+            (None, Some(l)) => {
+                if l > 0 {
+                    Ok(Range::Raw {
+                        offset: 0,
+                        length: Some(l),
+                    })
+                } else {
+                    Err(StreamErrorFor::<Input>::message("bad length"))
+                }
+            }
+            (Some(o), Some(l)) => {
+                if l > 0 {
+                    if o <= u32::MAX - l {
+                        Ok(Range::Raw {
+                            offset: o,
+                            length: Some(l),
+                        })
                     } else {
                         Err(StreamErrorFor::<Input>::message("bad length"))
                     }
+                } else {
+                    Err(StreamErrorFor::<Input>::message("bad length"))
                 }
             }
         });
 
-    char::char('{').with(choice((char::char('}').with(value(Range::Full)),
-                                 attempt(one_element),
-                                 attempt(multi_element))))
+    char::char('{').with(choice((
+        char::char('}').with(value(Range::Full)),
+        attempt(one_element),
+        attempt(multi_element),
+    )))
 }
 
 pub fn parser<Input>() -> impl Parser<Input, Output = Range>
@@ -94,9 +121,14 @@ where
     Input: Stream<Token = char>,
     Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
 {
-    choice((parse_array_range(),
-            parse_byte_range(),
-            value(Range::Array { start_index: 0, end_index: Some(0) })))
+    choice((
+        parse_array_range(),
+        parse_byte_range(),
+        value(Range::Array {
+            start_index: 0,
+            end_index: Some(0),
+        }),
+    ))
 }
 
 #[cfg(test)]
@@ -126,7 +158,13 @@ mod tests {
         for &(text, start_index, end_index, extra) in range_data {
             assert_eq!(
                 parser().parse(text),
-                Ok((Range::Array { start_index, end_index }, extra))
+                Ok((
+                    Range::Array {
+                        start_index,
+                        end_index
+                    },
+                    extra
+                ))
             );
         }
 
