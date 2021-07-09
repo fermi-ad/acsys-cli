@@ -10,11 +10,9 @@ pub enum ReadingField {
     Scaled,
 }
 
-impl Default for ReadingField {
-    fn default() -> Self { ReadingField::Scaled }
-}
-
 impl ReadingField {
+    pub const fn default() -> Self { ReadingField::Scaled }
+
     pub fn canonical(&self) -> &'static str {
         match *self {
             ReadingField::Raw => ".RAW",
@@ -31,11 +29,9 @@ pub enum SettingField {
     Scaled,
 }
 
-impl Default for SettingField {
-    fn default() -> Self { SettingField::Scaled }
-}
-
 impl SettingField {
+    pub const fn default() -> Self { SettingField::Scaled }
+
     pub fn canonical(&self) -> &'static str {
         match *self {
             SettingField::Raw => ".RAW",
@@ -58,11 +54,9 @@ pub enum StatusField {
     Ramp,
 }
 
-impl Default for StatusField {
-    fn default() -> Self { StatusField::All }
-}
-
 impl StatusField {
+    pub const fn default() -> Self { StatusField::All }
+
     pub fn canonical(&self) -> &'static str {
         match *self {
             StatusField::Raw => ".RAW",
@@ -101,11 +95,9 @@ pub enum AnalogField {
     Flags,
 }
 
-impl Default for AnalogField {
-    fn default() -> Self { AnalogField::All }
-}
-
 impl AnalogField {
+    pub const fn default() -> Self { AnalogField::All }
+
     pub fn canonical(&self) -> &'static str {
         match *self {
             AnalogField::Raw => ".RAW",
@@ -148,11 +140,9 @@ pub enum DigitalField {
     Flags,
 }
 
-impl Default for DigitalField {
-    fn default() -> Self { DigitalField::All }
-}
-
 impl DigitalField {
+    pub const fn default() -> Self { DigitalField::All }
+
     pub fn canonical(&self) -> &'static str {
         match *self {
             DigitalField::Raw => ".RAW",
