@@ -2,42 +2,145 @@ use super::{AnalogField, DigitalField, Property, ReadingField, SettingField, Sta
 use combine::error::{ParseError, StreamError};
 use combine::parser::{char, choice, repeat};
 use combine::stream::{Stream, StreamErrorFor};
-use combine::Parser;
+use combine::{Parser, EasyParser};
 
-const READING_FIELDS: [(&'static str, ReadingField); 5] = [
-    ("COMMON", ReadingField::Scaled),
-    ("PRIMARY", ReadingField::Primary),
-    ("RAW", ReadingField::Raw),
-    ("SCALED", ReadingField::Scaled),
-    ("VOLTS", ReadingField::Primary),
-];
-
-const SETTING_FIELDS: [(&'static str, SettingField); 5] = [
-    ("COMMON", SettingField::Scaled),
-    ("PRIMARY", SettingField::Primary),
-    ("RAW", SettingField::Raw),
-    ("SCALED", SettingField::Scaled),
-    ("VOLTS", SettingField::Primary),
-];
-
-fn get_parser<Input, PropField: Copy>(
+fn lookup<PropField: Clone>(
+    v: &str,
     key_values: &'static [(&'static str, PropField)],
-) -> impl Parser<Input, Output = PropField>
+) -> Option<PropField>
+{
+    for (d, o) in key_values {
+        if v.eq(*d) {
+            return Some(o.clone());
+        }
+    }
+    None
+}
+
+pub fn parse_field<Input>(use_prop: Property) -> impl Parser<Input, Output = Property>
 where
     Input: Stream<Token = char>,
     Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
 {
     char::char('.').with(
-        repeat::many1(choice::or(char::letter(), char::char('_'))).and_then(move |v: String| {
-            for (d, o) in key_values {
-                if &v == d {
-                    return Ok(o.clone());
-                }
-            }
+        repeat::many1(choice::or(char::letter(), char::char('_')))
+            .and_then(move |v: String| {
+                let v = v.to_uppercase();
 
-            return Err(StreamErrorFor::<Input>::message("Unknown property"));
-        }),
-    )
+                match use_prop {
+                    Property::Reading(_) => {
+                        const FIELDS: [(&'static str, ReadingField); 5] = [
+                            ("COMMON", ReadingField::Scaled),
+                            ("PRIMARY", ReadingField::Primary),
+                            ("RAW", ReadingField::Raw),
+                            ("SCALED", ReadingField::Scaled),
+                            ("VOLTS", ReadingField::Primary),
+                        ];
+
+                        if let Some(v) = lookup(&v, &FIELDS) {
+                            return Ok(Property::Reading(v))
+                        }
+                    }
+                    Property::Setting(_) => {
+                        const FIELDS: [(&'static str, SettingField); 5] = [
+                            ("COMMON", SettingField::Scaled),
+                            ("PRIMARY", SettingField::Primary),
+                            ("RAW", SettingField::Raw),
+                            ("SCALED", SettingField::Scaled),
+                            ("VOLTS", SettingField::Primary),
+                        ];
+
+                        if let Some(v) = lookup(&v, &FIELDS) {
+                            return Ok(Property::Setting(v))
+                        }
+                    }
+                    Property::Status(_) => {
+                        const FIELDS: [(&'static str, StatusField); 9] = [
+                            ("ALL", StatusField::All),
+                            ("EXTENDED_TEXT", StatusField::ExtText),
+                            ("ON", StatusField::On),
+                            ("POSITIVE", StatusField::Positive),
+                            ("RAMP", StatusField::Ramp),
+                            ("RAW", StatusField::Raw),
+                            ("READY", StatusField::Ready),
+                            ("REMOTE", StatusField::Remote),
+                            ("TEXT", StatusField::Text),
+                        ];
+
+                        if let Some(v) = lookup(&v, &FIELDS) {
+                            return Ok(Property::Status(v))
+                        }
+                    }
+                    Property::Analog(_) => {
+                        const FIELDS: [(&'static str, AnalogField); 30] = [
+                            ("ABORT", AnalogField::Abort),
+                            ("ABORT_INHIBIT", AnalogField::AbortInhibit),
+                            ("ALARM_ENABLE", AnalogField::Enable),
+                            ("ALARM_FTD", AnalogField::FTD),
+                            ("ALARM_STATUS", AnalogField::Status),
+                            ("ALL", AnalogField::All),
+                            ("ENABLE", AnalogField::Enable),
+                            ("FLAGS", AnalogField::Flags),
+                            ("FTD", AnalogField::FTD),
+                            ("MAX", AnalogField::Max),
+                            ("MAXIMUM", AnalogField::Max),
+                            ("MIN" , AnalogField::Min),
+                            ("MINIMUM", AnalogField::Min),
+                            ("NOM", AnalogField::Nom),
+                            ("NOMINAL", AnalogField::Nom),
+                            ("RAW", AnalogField::Raw),
+                            ("RAW_MAX", AnalogField::RawMax),
+                            ("RAWMAX", AnalogField::RawMax),
+                            ("RAW_MIN", AnalogField::RawMin),
+                            ("RAWMIN", AnalogField::RawMin),
+                            ("RAW_NOM", AnalogField::RawNom),
+                            ("RAWNOM", AnalogField::RawNom),
+                            ("RAW_TOL", AnalogField::RawTol),
+                            ("RAWTOL", AnalogField::RawTol),
+                            ("STATUS", AnalogField::Status),
+                            ("TEXT", AnalogField::Text),
+                            ("TOL", AnalogField::Tol),
+                            ("TOLERANCE", AnalogField::Tol),
+                            ("TRIES_NEEDED", AnalogField::TriesNeeded),
+                            ("TRIES_NOW", AnalogField::TriesNow),
+                        ];
+
+                        if let Some(v) = lookup(&v, &FIELDS) {
+                            return Ok(Property::Analog(v))
+                        }
+                    }
+                    Property::Digital(_) => {
+                        const FIELDS: [(&'static str, DigitalField); 17] = [
+                            ("ABORT", DigitalField::Abort),
+                            ("ABORT_INHIBIT", DigitalField::AbortInhibit),
+                            ("ALARM_ENABLE", DigitalField::Enable),
+                            ("ALARM_FTD", DigitalField::FTD),
+                            ("ALARM_STATUS", DigitalField::Status),
+                            ("ALL", DigitalField::All),
+                            ("ENABLE", DigitalField::Enable),
+                            ("FLAGS", DigitalField::Flags),
+                            ("FTD", DigitalField::FTD),
+                            ("NOM", DigitalField::Nom),
+                            ("NOMINAL", DigitalField::Nom),
+                            ("MASK", DigitalField::Mask),
+                            ("RAW", DigitalField::Raw),
+                            ("STATUS", DigitalField::Status),
+                            ("TEXT", DigitalField::Text),
+                            ("TRIES_NEEDED", DigitalField::TriesNeeded),
+                            ("TRIES_NOW", DigitalField::TriesNow),
+                        ];
+
+                        if let Some(v) = lookup(&v, &FIELDS) {
+                            return Ok(Property::Digital(v))
+                        }
+                    }
+                    Property::Control | Property::Description |
+                    Property::Index | Property::LongName |
+                    Property::AlarmList =>
+                        return Err(StreamErrorFor::<Input>::message("property has no fields"))
+                }
+                Err(StreamErrorFor::<Input>::message("invalid field"))
+            }))
 }
 
 pub fn parse_property<Input>(qual_prop: Property) -> impl Parser<Input, Output = Property>
@@ -80,23 +183,32 @@ where
         ("STS", Property::Status(StatusField::default())),
     ];
 
-    get_parser(&PROPERTIES)
-        .and_then(move |property| {
-            match (qual_prop, property) {
-                (Property::Reading(_), _) |
-                (Property::Setting(_), Property::Setting(_)) |
-                (Property::Status(_), Property::Status(_)) |
-                (Property::Analog(_), Property::Analog(_)) |
-                (Property::Digital(_), Property::Digital(_)) |
-                (Property::Control, Property::Control) |
-                (Property::Description, Property::Description) |
-                (Property::Index, Property::Index) |
-                (Property::LongName, Property::LongName) |
-                (Property::AlarmList, Property::AlarmList) => Ok(property),
-                _ =>
-                    Err(StreamErrorFor::<Input>::message("mismatched properties"))
-            }
-        })
+    char::char('.').with(
+        repeat::many1(choice::or(char::letter(), char::char('_')))
+            .and_then(move |v: String| {
+                let v = v.to_uppercase();
+
+                if let Some(property) = lookup(&v, &PROPERTIES) {
+                    match (qual_prop, property) {
+                        (Property::Reading(_), _) |
+                        (Property::Setting(_), Property::Setting(_)) |
+                        (Property::Status(_), Property::Status(_)) |
+                        (Property::Analog(_), Property::Analog(_)) |
+                        (Property::Digital(_), Property::Digital(_)) |
+                        (Property::Control, Property::Control) |
+                        (Property::Description, Property::Description) |
+                        (Property::Index, Property::Index) |
+                        (Property::LongName, Property::LongName) |
+                        (Property::AlarmList, Property::AlarmList) =>
+                            Ok(property),
+                        _ =>
+                            Err(StreamErrorFor::<Input>::message("mismatched properties"))
+                    }
+                } else {
+                    Err(StreamErrorFor::<Input>::message("unknown property"))
+                }
+            })
+    )
 }
 
 #[cfg(test)]
@@ -147,7 +259,8 @@ mod tests {
         ];
 
         for &(d, o, x) in device_data {
-            assert_eq!(parse_property(o).parse(d), Ok((o, x)));
+            assert_eq!(parse_property(o).easy_parse(d), Ok((o, x)),
+                       "\n input: \"{}\"", d);
         }
     }
 }

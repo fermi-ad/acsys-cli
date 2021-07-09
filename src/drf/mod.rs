@@ -365,21 +365,22 @@ mod prop_field;
 mod range;
 
 pub fn parse(drf: &str) -> Result<Request, StringStreamError> {
-    let mut p = device::parser().then(move |(device, qual_property)| {
-        (
-            optional(prop_field::parse_property(qual_property))
-                .map(move |v| v.unwrap_or(qual_property)),
-            range::parser(),
-            event::parser(),
-        )
-            .map(move |(property, range, event)|
-                 Request {
-                     device: device.clone(),
-                     property,
-                     range,
-                     event,
-                 }
-            )
+    let mut p = device::parser().then(|(device, qual_property)| {
+        optional(prop_field::parse_property(qual_property))
+            .map(move |v| (device.clone(), v.unwrap_or(qual_property)))
+            .then(|(dev, use_prop)| {
+                (range::parser(),
+                 optional(prop_field::parse_field(use_prop)),
+                 event::parser())
+                    .map(move |(range, property, event)|
+                         Request {
+                             device: dev.clone(),
+                             property: property.unwrap_or(use_prop),
+                             range,
+                             event,
+                         }
+                    )
+            })
     });
 
     Ok(p.parse(drf)?.0)
@@ -444,7 +445,8 @@ mod tests {
         ];
 
         for &(drf, result) in data {
-            assert_eq!(parse(drf).unwrap().canonical(), result)
+            assert_eq!(parse(drf).unwrap().canonical(), result,
+                       "\n input: {}", drf)
         }
     }
 }
