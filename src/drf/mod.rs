@@ -1,4 +1,4 @@
-use combine::{error::StringStreamError, error::StreamError, optional, Stream, ParseError, Parser};
+use combine::{error::StringStreamError, optional, Parser};
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Device(String);
