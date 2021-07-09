@@ -374,18 +374,6 @@ mod event;
 mod prop_field;
 mod range;
 
-pub fn parse_device(dev_str: &str) -> Result<(Device, Property), StringStreamError> {
-    Ok(device::parser().parse(dev_str)?.0)
-}
-
-pub fn parse_range(ev_str: &str) -> Result<Range, StringStreamError> {
-    Ok(range::parser().parse(ev_str)?.0)
-}
-
-pub fn parse_event(ev_str: &str) -> Result<Event, StringStreamError> {
-    Ok(event::parser().parse(ev_str)?.0)
-}
-
 pub fn parse(drf: &str) -> Result<Request, StringStreamError> {
     let mut p = device::parser().then(move |(device, qual_property)| {
         (
