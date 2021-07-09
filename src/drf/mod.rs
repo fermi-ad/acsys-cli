@@ -271,13 +271,9 @@ pub enum ClockType {
     Either,
 }
 
-impl Default for ClockType {
-    fn default() -> Self {
-        ClockType::Either
-    }
-}
-
 impl ClockType {
+    pub const fn default() -> Self { ClockType::Either }
+
     pub fn canonical(&self) -> &'static str {
         match *self {
             ClockType::Hardware => "H",
