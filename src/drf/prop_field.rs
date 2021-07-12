@@ -4,6 +4,10 @@ use combine::parser::{char, choice, repeat};
 use combine::stream::{Stream, StreamErrorFor};
 use combine::{Parser, EasyParser};
 
+// This generic function provides a Key->Value lookup from a &str to a
+// type of the caller's choice. If the keys isn't found, `None` is
+// returned.
+
 fn lookup<PropField: Clone>(
     v: &str,
     key_values: &'static [(&'static str, PropField)],
@@ -16,6 +20,11 @@ fn lookup<PropField: Clone>(
     }
     None
 }
+
+// This function returns a parser for the DRF ".FIELD" portion of the
+// request. The function takes a parameter, `use_prop`, to determine
+// which field names are valid. It returns the property with the field
+// value adjusted to the parsed value.
 
 pub fn parse_field<Input>(use_prop: Property) -> impl Parser<Input, Output = Property>
 where
@@ -142,6 +151,12 @@ where
                 Err(StreamErrorFor::<Input>::message("invalid field"))
             }))
 }
+
+// Returns a parser that recognizes all the names for valid
+// properties. The parse returns a property with the field set to the
+// default for that property. The parameter, `qual_prop`, restricts
+// which property will be accepted (it is usually set to the property
+// found in the second character of the device name.)
 
 pub fn parse_property<Input>(qual_prop: Property) -> impl Parser<Input, Output = Property>
 where
