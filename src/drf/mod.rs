@@ -1,4 +1,4 @@
-use combine::{error::StringStreamError, optional, Parser};
+use combine::{error::StringStreamError, attempt, optional, Parser};
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Device(String);
@@ -366,7 +366,7 @@ mod range;
 
 pub fn parse(drf: &str) -> Result<Request, StringStreamError> {
     let mut p = device::parser().then(|(device, qual_property)| {
-        optional(prop_field::parse_property(qual_property))
+        optional(attempt(prop_field::parse_property(qual_property)))
             .map(move |v| (device.clone(), v.unwrap_or(qual_property)))
             .then(|(dev, use_prop)| {
                 (range::parser(),
@@ -441,7 +441,9 @@ mod tests {
             ("M:OUTTMP", "M:OUTTMP.READING.SCALED"),
             ("M:OUTTMP[0:3]", "M:OUTTMP.READING[0:3].SCALED"),
             ("M|OUTTMP[]", "M:OUTTMP.STATUS[].ALL"),
-            ("M|OUTTMP[]@e,02", "M:OUTTMP.STATUS[].ALL@E,2,E,0U"),
+            ("M|OUTTMP[]@e,02", "M:OUTTMP.STATUS[].ALL@E,2,E,0"),
+            ("M|OUTTMP.STATUS[]@e,02", "M:OUTTMP.STATUS[].ALL@E,2,E,0"),
+            ("M|OUTTMP.On@e,02", "M:OUTTMP.STATUS.ON@E,2,E,0"),
         ];
 
         for &(drf, result) in data {
