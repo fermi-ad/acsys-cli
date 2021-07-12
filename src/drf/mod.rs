@@ -307,6 +307,18 @@ pub enum Event {
 }
 
 impl Event {
+    fn canonical_delay(dly: u32) -> String {
+        if dly == 0 {
+            String::from("0")
+        } else if dly % 1000000 == 0 {
+            format!("{}S", dly / 1000000)
+        } else if dly % 1000 == 0 {
+            format!("{}", dly / 1000)
+        } else {
+            format!("{}U", dly)
+        }
+    }
+
     pub fn canonical(&self) -> String {
         match *self {
             Event::Default => String::from(""),
@@ -317,22 +329,24 @@ impl Event {
                 immediate,
                 skip_dups,
             } => format!(
-                "@{},{}U,{}",
+                "@{},{},{}",
                 if skip_dups { 'Q' } else { 'P' },
-                period,
+                Event::canonical_delay(period),
                 if immediate { "TRUE" } else { "FALSE" }
             ),
             Event::Clock {
                 event,
                 clk_type,
                 delay,
-            } => format!("@E,{:X},{},{}U", event, clk_type.canonical(), delay),
+            } => format!("@E,{:X},{},{}", event, clk_type.canonical(),
+                         Event::canonical_delay(delay)),
             Event::State {
                 device,
                 value,
                 delay,
                 expr,
-            } => format!("@S,{},{},{}U,{}", device, value, delay, expr.canonical()),
+            } => format!("@S,{},{},{},{}", device, value,
+                         Event::canonical_delay(delay), expr.canonical()),
         }
     }
 }
@@ -397,16 +411,16 @@ mod tests {
             ("@n", "@N"),
             ("@I", "@I"),
             ("@i", "@I"),
-            ("@P,1s", "@P,1000000U,TRUE"),
-            ("@P,1s,f", "@P,1000000U,FALSE"),
-            ("@P,2h,false", "@P,500000U,FALSE"),
+            ("@P,1s", "@P,1S,TRUE"),
+            ("@P,1s,f", "@P,1S,FALSE"),
+            ("@P,2h,false", "@P,500,FALSE"),
             ("@P,10u,false", "@P,10U,FALSE"),
-            ("@P,20m", "@P,20000U,TRUE"),
-            ("@P,30", "@P,30000U,TRUE"),
+            ("@P,20m", "@P,20,TRUE"),
+            ("@P,30", "@P,30,TRUE"),
             ("@P,10k", "@P,100U,TRUE"),
-            ("@E,008f,h,10h", "@E,8F,H,100000U"),
-            ("@E,0", "@E,0,E,0U"),
-            ("@S,1234,0,1s,=", "@S,1234,0,1000000U,="),
+            ("@E,008f,h,10h", "@E,8F,H,100"),
+            ("@E,0", "@E,0,E,0"),
+            ("@S,1234,0,1s,=", "@S,1234,0,1S,="),
         ];
 
         for &(event, result) in data {
