@@ -1,4 +1,5 @@
-use combine::{error::StringStreamError, attempt, optional, Parser};
+use combine::{error::StringStreamError, Stream, ParseError, attempt, optional,
+              Parser};
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Device(String);
@@ -378,8 +379,15 @@ mod event;
 mod prop_field;
 mod range;
 
-pub fn parse(drf: &str) -> Result<Request, StringStreamError> {
-    let mut p = device::parser().then(|(device, qual_property)| {
+// Returns a parser for a DRF request. On a successful parser, it
+// returns a pair containing a `Request` and the remaining text.
+
+pub fn parse<Input>() -> impl Parser<Input, Output = Request>
+where
+    Input: Stream<Token = char>,
+    Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
+{
+    device::parser().then(|(device, qual_property)| {
         optional(attempt(prop_field::parse_property(qual_property)))
             .map(move |v| (device.clone(), v.unwrap_or(qual_property)))
             .then(|(dev, use_prop)| {
@@ -395,14 +403,26 @@ pub fn parse(drf: &str) -> Result<Request, StringStreamError> {
                          }
                     )
             })
-    });
+    })
+}
 
-    Ok(p.parse(drf)?.0)
+pub fn parse_drf(drf: &str) -> Result<Request, StringStreamError> {
+    match parse().parse(drf) {
+        Ok((result, "")) => Ok(result),
+        Ok(_) => Err(StringStreamError::UnexpectedParse),
+        Err(e) => Err(e)
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_drf_parsing() {
+        assert!(parse_drf("M:OUTTMP.ON[0]").is_err());
+        assert!(parse_drf("M|OUTTMP.ON[0]").is_err());
+    }
 
     #[test]
     fn test_event_canonical_forms() {
@@ -461,7 +481,7 @@ mod tests {
         ];
 
         for &(drf, result) in data {
-            assert_eq!(parse(drf).unwrap().canonical(), result,
+            assert_eq!(parse_drf(drf).unwrap().canonical(), result,
                        "\n input: {}", drf)
         }
     }
