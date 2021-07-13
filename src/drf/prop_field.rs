@@ -38,7 +38,7 @@ where
 
                 match use_prop {
                     Property::Reading(_) => {
-                        const FIELDS: [(&'static str, ReadingField); 5] = [
+                        const FIELDS: [(&str, ReadingField); 5] = [
                             ("COMMON", ReadingField::Scaled),
                             ("PRIMARY", ReadingField::Primary),
                             ("RAW", ReadingField::Raw),
@@ -51,7 +51,7 @@ where
                         }
                     }
                     Property::Setting(_) => {
-                        const FIELDS: [(&'static str, SettingField); 5] = [
+                        const FIELDS: [(&str, SettingField); 5] = [
                             ("COMMON", SettingField::Scaled),
                             ("PRIMARY", SettingField::Primary),
                             ("RAW", SettingField::Raw),
@@ -64,7 +64,7 @@ where
                         }
                     }
                     Property::Status(_) => {
-                        const FIELDS: [(&'static str, StatusField); 9] = [
+                        const FIELDS: [(&str, StatusField); 9] = [
                             ("ALL", StatusField::All),
                             ("EXTENDED_TEXT", StatusField::ExtText),
                             ("ON", StatusField::On),
@@ -81,7 +81,7 @@ where
                         }
                     }
                     Property::Analog(_) => {
-                        const FIELDS: [(&'static str, AnalogField); 30] = [
+                        const FIELDS: [(&str, AnalogField); 30] = [
                             ("ABORT", AnalogField::Abort),
                             ("ABORT_INHIBIT", AnalogField::AbortInhibit),
                             ("ALARM_ENABLE", AnalogField::Enable),
@@ -119,7 +119,7 @@ where
                         }
                     }
                     Property::Digital(_) => {
-                        const FIELDS: [(&'static str, DigitalField); 17] = [
+                        const FIELDS: [(&str, DigitalField); 17] = [
                             ("ABORT", DigitalField::Abort),
                             ("ABORT_INHIBIT", DigitalField::AbortInhibit),
                             ("ALARM_ENABLE", DigitalField::Enable),
